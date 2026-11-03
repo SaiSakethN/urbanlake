@@ -1,0 +1,45 @@
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Environment variables and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local datasets and generated outputs
+data/raw/
+data/bronze/
+data/silver/
+data/gold/
+data/checkpoints/
+data/samples/
+artifacts/
+mlruns/
+
+# Spark and Delta Lake
+spark-warehouse/
+metastore_db/
+derby.log
+.delta_log/
+
+# Local infrastructure
+logs/
+tmp/
+*.sqlite
+*.db
+
+# IDE and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
