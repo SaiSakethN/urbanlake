@@ -1,4 +1,4 @@
-"""Paused-by-default bounded workflows; no implicit full-dataset backfills.
+"""Manual bounded workflows; no implicit full-dataset backfills.
 
 The application CLI runs in its own Python environment, isolated from Airflow.
 All medallion writers use one shared Airflow pool slot / max_active_runs=1;
@@ -19,7 +19,7 @@ def execute(*arguments):
 
 @dag(
     dag_id="urbanlake_recent_reconciliation",
-    schedule="0 8 * * *",
+    schedule=None,
     start_date=pendulum.datetime(2026, 1, 1, tz="America/New_York"),
     catchup=False,
     is_paused_upon_creation=True,
@@ -76,7 +76,7 @@ def recent():
 
 @dag(
     dag_id="urbanlake_wider_reconciliation",
-    schedule="0 8 * * 0",
+    schedule=None,
     start_date=pendulum.datetime(2026, 1, 1, tz="America/New_York"),
     catchup=False,
     is_paused_upon_creation=True,
@@ -87,8 +87,8 @@ def recent():
 def wider():
     @task
     def reconcile(data_interval_end=None, run_id=None):
-        # Revisit a wider 14-day created-date window weekly. This DAG starts paused:
-        # enabling it authorizes at most 280,000 records per run (20k/day cap).
+        # Manually revisit a wider 14-day created-date window, capped at
+        # 280,000 records per run (20k/day cap).
         end = data_interval_end.in_timezone("America/New_York").date() - timedelta(days=3)
         token = hashlib.sha256(run_id.encode()).hexdigest()[:20]
         for days in range(1, 15):

@@ -174,10 +174,11 @@ docker compose run --rm --no-deps airflow airflow dags test urbanlake_saved_samp
 docker compose --profile orchestration up -d airflow
 ```
 
-The daily reconciliation DAG polls three created-date days with a three-day
-source delay, refreshes 120 demand aggregates, then processes and trains. The weekly
-wider DAG revisits 14 days, capped at 20,000 records/day (280,000 maximum per run).
-Both start paused. **Review the API/resource budget before enabling them.** Neither
+Updates stay manual, as requested. Both reconciliation DAGs have `schedule=None`
+and start paused. The recent reconciliation DAG polls three created-date days with
+a three-day source delay, refreshes 120 demand aggregates, then processes and
+trains. The wider DAG revisits 14 days, capped at 20,000 records/day (280,000 maximum
+per run). **Review the API/resource budget before triggering them.** Neither
 provides true CDC, delete detection, nor updates outside its lookback.
 Airflow standalone writes its generated local login under
 `artifacts/airflow/standalone_admin_password.txt`; do not publish that file.
