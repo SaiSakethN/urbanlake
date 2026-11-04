@@ -15,8 +15,8 @@ def session(kafka: bool = False):
 
     builder = (
         SparkSession.builder.appName("UrbanLake")
-        .master("local[2]")
-        .config("spark.driver.memory", "1536m")
+        .master(os.getenv("SPARK_MASTER", "local[2]"))
+        .config("spark.driver.memory", os.getenv("SPARK_DRIVER_MEMORY", "1536m"))
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.databricks.delta.snapshotPartitions", "2")
         .config("spark.ui.showConsoleProgress", "false")

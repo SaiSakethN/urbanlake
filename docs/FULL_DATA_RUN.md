@@ -84,6 +84,8 @@ Kafka relays, Delta coverage gates and independent full-lake validation succeed.
 During heavy processing, only UrbanLake's own Airflow, MLflow, Prometheus and
 Grafana were paused. The unrelated pre-existing Airflow project was left running.
 These services will be restored for final model tracking and serving validation.
+Compose Spark jobs use four local worker threads and a 2 GiB driver within the
+existing 4 GiB container memory limit; the session defaults remain configurable.
 
 ## Verification status
 

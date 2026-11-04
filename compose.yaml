@@ -61,6 +61,8 @@ services:
       <<: *environment
       SPARK_LOCAL_IP: 127.0.0.1
       PYSPARK_PYTHON: python
+      SPARK_MASTER: ${SPARK_MASTER:-local[4]}
+      SPARK_DRIVER_MEMORY: ${SPARK_DRIVER_MEMORY:-2g}
     entrypoint: urbanlake
     command: [process]
   postgres:
