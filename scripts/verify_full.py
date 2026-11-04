@@ -117,7 +117,8 @@ def main():
             raise ValueError("Bronze does not match the archived source observation count")
         if b.source_keys != expected:
             raise ValueError(
-                "source keys overlap across monthly snapshots; reconcile source changes before completion"
+                "source keys overlap across monthly snapshots; "
+                "reconcile source changes before completion"
             )
         if s.rows != s.source_keys or s.rows != b.source_keys or s.invalid_dates:
             raise ValueError("Silver uniqueness/coverage/date assertions failed")

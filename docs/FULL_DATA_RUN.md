@@ -69,6 +69,7 @@ not proof that all row contents came from the exact same source instant.
 ```powershell
 # The plan already exists for the authorized run; this does not download records.
 .\.venv\Scripts\python.exe -m urbanlake.backfill status --root data/full/backfill
+.\.venv\Scripts\python.exe -m urbanlake.full_project --status
 # Resume the pipeline (downloads, Kafka, Spark and per-month finalization):
 .\.venv\Scripts\python.exe -m urbanlake.full_run run --root data/full/backfill --lake data/full/lake --checkpoint data/full/checkpoints/kafka-v1 --topic urbanlake.full.observations.v1
 # Complete source processing, global audit, model training and local promotion:

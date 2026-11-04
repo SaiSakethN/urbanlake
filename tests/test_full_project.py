@@ -22,3 +22,13 @@ def test_incomplete_data_cannot_promote_a_full_model(monkeypatch, tmp_path, pipe
     assert not called
     status = json.loads((artifacts / "full-project-status.json").read_text())
     assert status["status"] == "failed" and status["complete"] is False
+
+
+def test_status_never_starts_work(monkeypatch, tmp_path, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.argv", ["full_project", "--status"])
+    called = []
+    monkeypatch.setattr(full_project, "execute", lambda command: called.append(command))
+    full_project.main()
+    assert not called
+    assert json.loads(capsys.readouterr().out)["project"]["status"] == "not_started"

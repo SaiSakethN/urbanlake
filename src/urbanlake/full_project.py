@@ -74,10 +74,23 @@ def verify_serving():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--status", action="store_true", help="read live progress without starting work")
     parser.add_argument(
         "--skip-pipeline", action="store_true", help="resume after global audit only"
     )
     args, pipeline_arguments = parser.parse_known_args()
+    if args.status:
+        from urbanlake.full_run import progress_report
+
+        project = json.loads(STATUS.read_text()) if STATUS.exists() else {"status": "not_started"}
+        root = Path("data/full/backfill")
+        pipeline = None
+        if (root / "pipeline.json").exists():
+            state = json.loads((root / "pipeline.json").read_text())
+            plan = json.loads((root / "plan.json").read_text())
+            pipeline = progress_report(root, state, plan)
+        print(json.dumps({"project": project, "pipeline": pipeline}, indent=2))
+        return
     state = {"status": "running", "complete": False, "started_at": datetime.now(UTC).isoformat()}
     try:
         atomic_json(STATUS, state)
