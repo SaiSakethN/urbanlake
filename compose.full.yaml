@@ -1,5 +1,8 @@
 # Serve and monitor the independently verified full-history artifacts.
 services:
+  airflow:
+    volumes:
+      - ./dags:/app/dags:ro
   api:
     environment:
       MODEL_PATH: /app/artifacts/full-model.joblib

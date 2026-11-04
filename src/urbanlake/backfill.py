@@ -17,7 +17,7 @@ import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -159,9 +159,23 @@ def check_disk(root: Path, min_free_gb: float, extra_bytes: int = 64 * 1024**2) 
         raise RuntimeError(f"disk safeguard stopped ingestion: {free / 1024**3:.2f} GiB free")
 
 
+def source_timestamp_ceiling(value: str) -> str:
+    """Represent a logical bound on NYC 311's millisecond timestamp grid.
+
+    Socrata truncates sub-millisecond literal precision. Rounding BOTH bounds up
+    preserves the logical [start, end) interval for millisecond-valued source
+    timestamps. Cursor values are observed source values and remain unchanged.
+    """
+    stamp = local_datetime(value)
+    remainder = stamp.microsecond % 1000
+    if remainder:
+        stamp += timedelta(microseconds=1000 - remainder)
+    return stamp.isoformat(timespec="milliseconds")
+
+
 def _base_where(partition: dict) -> str:
-    start = local_datetime(partition["start"]).isoformat()
-    end = local_datetime(partition["end"]).isoformat()
+    start = source_timestamp_ceiling(partition["start"])
+    end = source_timestamp_ceiling(partition["end"])
     return f"created_date >= '{start}' AND created_date < '{end}'"
 
 

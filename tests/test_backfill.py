@@ -3,7 +3,15 @@ import json
 
 import pytest
 
-from urbanlake.backfill import create_plan, local_datetime, run, summary
+from urbanlake.backfill import (
+    _base_where,
+    create_plan,
+    local_datetime,
+    run,
+    source_timestamp_ceiling,
+    summary,
+    validate_page,
+)
 from urbanlake.contracts import Observation
 
 
@@ -140,3 +148,47 @@ def test_interruption_keeps_committed_pages_and_resume_rejects_corruption(tmp_pa
     with pytest.raises(RuntimeError, match="missing or corrupted"):
         run(tmp_path, min_free_gb=0, source_factory=lambda: FakeSource([]))
     assert not state(tmp_path)["complete"]
+
+
+@pytest.mark.parametrize(
+    ("logical", "source"),
+    [
+        ("2026-11-01T02:06:29.000001", "2026-11-01T02:06:29.001"),
+        ("2026-11-01T02:06:29.123000", "2026-11-01T02:06:29.123"),
+        ("2026-11-01T02:06:29.999999", "2026-11-01T02:06:30.000"),
+        ("2026-12-31T23:59:59.999999", "2027-01-01T00:00:00.000"),
+        ("2020-01-01", "2020-01-01T00:00:00.000"),
+    ],
+)
+def test_source_bounds_round_up_without_losing_latest_row(logical, source):
+    assert source_timestamp_ceiling(logical) == source
+
+
+def test_generated_source_predicate_ceilings_both_bounds_without_mutating_plan():
+    partition = {"start": "2026-11-01T02:06:29.000001", "end": "2026-11-01T02:06:29.002001"}
+    original = partition.copy()
+    assert _base_where(partition) == (
+        "created_date >= '2026-11-01T02:06:29.001' AND created_date < '2026-11-01T02:06:29.003'"
+    )
+    assert partition == original
+    # Both logical and serialized windows include exactly .001 and .002.
+    logical_start, logical_end = map(local_datetime, (partition["start"], partition["end"]))
+    source_start, source_end = map(
+        local_datetime,
+        (
+            source_timestamp_ceiling(partition["start"]),
+            source_timestamp_ceiling(partition["end"]),
+        ),
+    )
+    for millisecond in range(5):
+        stamp = local_datetime(f"2026-11-01T02:06:29.{millisecond:03d}")
+        assert (logical_start <= stamp < logical_end) == (source_start <= stamp < source_end)
+
+
+def test_final_source_row_below_logical_microsecond_end_is_valid():
+    partition = {"start": "2026-11-01T00:00:00", "end": "2026-11-01T02:06:29.000001"}
+    latest = row("12345678", "2026-11-01T02:06:29.000")
+    assert validate_page([latest], partition, None) == [latest["created_date"], "12345678"]
+    assert "created_date < '2026-11-01T02:06:29.001'" in _base_where(partition)
+    with pytest.raises(ValueError, match="outside"):
+        validate_page([row("2", "2026-11-01T02:06:29.001")], partition, None)
