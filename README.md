@@ -153,8 +153,10 @@ There is deliberately no automatic deployment: publishing requires authorization
 
 ```powershell
 docker compose build airflow
+docker compose up -d --wait postgres
 docker compose run --rm --no-deps airflow airflow db migrate
 docker compose run --rm --no-deps airflow airflow dags list
+# Requires Kafka, MLflow and the saved sample files from the earlier sections.
 # Manually execute the saved-sample pipeline, with no online download:
 docker compose run --rm --no-deps airflow airflow dags test urbanlake_saved_sample_smoke 2026-11-03
 # Optional UI/scheduler (DAGs remain paused):
