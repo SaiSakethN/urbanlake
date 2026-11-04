@@ -13,13 +13,7 @@ from pathlib import Path
 
 from urbanlake.contracts import Observation
 from urbanlake.messaging import Publisher
-
-
-def atomic_json(path: Path, value: dict):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2), encoding="utf-8")
-    temporary.replace(path)
+from urbanlake.state_io import atomic_json
 
 
 def relay_partition(root: Path, partition: str, *, topic: str, bootstrap=None):

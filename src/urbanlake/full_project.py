@@ -25,19 +25,25 @@ def execute(command):
 
 
 def verify_serving():
+    expected = hashlib.sha256(Path("artifacts/full-model.joblib").read_bytes()).hexdigest()[:16]
+    audit = json.loads(Path("artifacts/full-verification.json").read_text())
+    expected_counts = {
+        "bronze_observations": audit["bronze_rows"],
+        "silver_requests": audit["silver_rows"],
+    }
     with httpx.Client(timeout=10) as client:
         for attempt in range(30):
             try:
                 response = client.get("http://localhost:8000/v1/model")
                 response.raise_for_status()
                 model = response.json()
-                expected = hashlib.sha256(
-                    Path("artifacts/full-model.joblib").read_bytes()
-                ).hexdigest()[:16]
                 if model["model_version"] != expected:
-                    raise RuntimeError("API has not loaded the newly trained full-history model")
+                    raise RuntimeError(
+                        "API has not loaded the newly trained full-history model: "
+                        f"expected {expected}, observed {model['model_version']}"
+                    )
                 break
-            except httpx.HTTPError:
+            except (httpx.HTTPError, RuntimeError):
                 if attempt == 29:
                     raise
                 time.sleep(2)
@@ -58,18 +64,42 @@ def verify_serving():
         if tracked.json()["run"]["info"]["status"] != "FINISHED":
             raise RuntimeError("full-history training run is not FINISHED in MLflow")
         # Scrape interval is fifteen seconds; bounded polling verifies live metrics.
+        observed_counts = {}
         for attempt in range(20):
             try:
-                targets = client.get("http://localhost:9090/api/v1/targets").json()
+                response = client.get("http://localhost:9090/api/v1/targets")
+                response.raise_for_status()
+                targets = response.json()
                 active = targets["data"]["activeTargets"]
                 if len(active) == 2 and all(t["health"] == "up" for t in active):
-                    break
+                    observed_counts = {}
+                    for name in expected_counts:
+                        response = client.get(
+                            "http://localhost:9090/api/v1/query",
+                            params={
+                                "query": f'urbanlake_pipeline_{name}{{job="urbanlake-pipeline"}}'
+                            },
+                        )
+                        response.raise_for_status()
+                        result = response.json()["data"]["result"]
+                        if len(result) == 1:
+                            observed_counts[name] = float(result[0]["value"][1])
+                    if observed_counts == expected_counts:
+                        break
             except (httpx.HTTPError, KeyError, ValueError):
                 pass
             if attempt == 19:
-                raise RuntimeError("full-history monitoring targets are not healthy")
+                raise RuntimeError(
+                    "full-history monitoring is not healthy or full row counts differ: "
+                    f"expected {expected_counts}, observed {observed_counts}"
+                )
             time.sleep(2)
-        return {"model": model, "prediction": forecast.json(), "training": training}
+        return {
+            "model": model,
+            "prediction": forecast.json(),
+            "training": training,
+            "monitoring_counts": observed_counts,
+        }
 
 
 def main():

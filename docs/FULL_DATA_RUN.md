@@ -101,18 +101,28 @@ Kafka relays, Delta coverage gates and independent full-lake validation succeed.
 During heavy processing, only UrbanLake's own Airflow, MLflow, Prometheus and
 Grafana were paused. The unrelated pre-existing Airflow project was left running.
 These services will be restored for final model tracking and serving validation.
+After this historical run, updates remain manual. Both reconciliation DAGs use
+`schedule=None`; no daily laptop task or automatic update schedule was installed.
 Compose Spark jobs use four local worker threads and a 2 GiB driver within the
 existing 4 GiB container memory limit; the session defaults remain configurable.
 
 ## Verification status
 
-Full-data unit checks: **44 passed**. Spark replay and a correction moving a key
+Current local unit checks: **57 passed**; Ruff passed. Spark replay and a correction moving a key
 from January into February passed, including repairing both months' Silver/Gold.
 January 2020 downloaded **195,231** records; before/after source counts agree and
 the compressed archive is **61.19 MB**. Its actual Kafka/Delta pipeline passed:
 all 195,231 source records were covered by the Bronze/Silver/Gold completion gate.
 February also downloaded completely (173,162 records); processing is continuing
 through all 83 months with one-month prefetch and a combined Spark consumer/finalizer.
+
+At 2026-11-04 03:10 UTC, Windows denied an atomic coordinator-status replacement
+after 30 source months had downloaded and 29 months had finalized. The data was
+intact. Shared state publication now uses unique same-directory temporary files,
+flush/fsync, and bounded retries for transient sharing violations; permanent
+failures still stop the run and preserve prior valid state. Four regression cases
+cover retries, exhaustion, unrelated write errors, and temporary-file isolation.
+The run resumed at 03:16 UTC from June 2022 without redownloading completed months.
 
 Full 23-million-row completion remains pending and must be backed by actual final
 counts and evidence. `full_project` refuses to promote a model before the global

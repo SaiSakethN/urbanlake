@@ -15,6 +15,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 from urbanlake.processing import envelope_schema, session
+from urbanlake.state_io import atomic_json
 
 MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
@@ -24,13 +25,6 @@ def month_predicate(months, column="created_month"):
     if not values or any(not MONTH.fullmatch(value) for value in values):
         raise ValueError("valid YYYY-MM partitions are required")
     return f"{column} IN ({','.join(repr(value) for value in values)})"
-
-
-def atomic_json(path: Path, payload: dict):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    temporary.replace(path)
 
 
 @contextmanager

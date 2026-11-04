@@ -23,6 +23,7 @@ from uuid import uuid4
 
 from urbanlake.contracts import Observation, SourceRequest
 from urbanlake.source import Socrata
+from urbanlake.state_io import atomic_json
 
 SCHEMA_VERSION = 1
 ISO_LOCAL = re.compile(r"^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?)?$")
@@ -32,16 +33,6 @@ def local_datetime(value: str) -> datetime:
     if not ISO_LOCAL.fullmatch(value):
         raise ValueError("bounds/cursors must be ISO dates or floating NYC datetimes")
     return datetime.fromisoformat(value)
-
-
-def atomic_json(path: Path, value: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid4().hex}.part")
-    with temporary.open("w", encoding="utf-8", newline="\n") as handle:
-        json.dump(value, handle, indent=2, sort_keys=True)
-        handle.flush()
-        os.fsync(handle.fileno())
-    temporary.replace(path)
 
 
 @contextmanager
