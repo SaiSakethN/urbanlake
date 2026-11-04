@@ -93,6 +93,20 @@ def main():
             pipeline = progress_report(root, state, plan)
         print(json.dumps({"project": project, "pipeline": pipeline}, indent=2))
         return
+    from urbanlake.full_run import pipeline_lock
+
+    # Own the complete project lifecycle before publishing any status. The
+    # second check also protects a pipeline started independently of this wrapper.
+    with pipeline_lock(STATUS.parent / "full-project-lock"):
+        try:
+            with pipeline_lock(Path("data/full/backfill")):
+                pass
+        except RuntimeError as error:
+            raise RuntimeError("full backfill is already running; use --status") from error
+        run_project(args, pipeline_arguments)
+
+
+def run_project(args, pipeline_arguments):
     state = {"status": "running", "complete": False, "started_at": datetime.now(UTC).isoformat()}
     try:
         atomic_json(STATUS, state)
