@@ -18,8 +18,8 @@ serving checks all passed. The live progress page now reports **100%**.
 | Source archives | 23,008,706 records; all source manifests complete |
 | Kafka / Spark monthly pipeline | Complete: 83/83 months finalized |
 | Independent full-lake audit | **Passed**: 23,008,706 unique observations/source keys and matching Silver/Gold totals |
-| Full-history model / tracked MLflow run | **Passed**: 497 test days; FINISHED run `LOCAL_RUN_ID` |
-| Full-model serving / Redis / monitoring | **Passed**: model `LOCAL_MODEL_VERSION`, actual cache hit, monitored full counts |
+| Full-history model / tracked MLflow run | **Passed**: 497 test days; FINISHED tracked run |
+| Full-model serving / Redis / monitoring | **Passed**: verified model checksum, actual cache hit, monitored full counts |
 | Restored service health | **Passed at 08:00:54 UTC**: API, MLflow, Prometheus, Grafana, and Airflow |
 | Latest whole unit suite | **64 passed** |
 | Ruff lint / format | **Passed**, 43 files checked |
@@ -29,7 +29,7 @@ serving checks all passed. The live progress page now reports **100%**.
 The first global audit found **23,008,705** matching archived/Bronze/Silver/Gold
 records and failed because the independently measured source count was
 **23,008,706**. A live query probe isolated the missing final timestamp: SoQL
-truncated the sub-millisecond exclusive end, excluding source key `12345678` at
+truncated the sub-millisecond exclusive end, excluding the latest source record at
 `2026-11-01T02:06:29.000`. The corrected query ceilings both bounds to the source's
 millisecond grid while retaining the exact logical plan and observed cursors.
 The final month now contains **1,540** records instead of 1,539; the missing row
@@ -145,7 +145,7 @@ historical facts for that checkpoint, not the current full-run status above.
 - MLflow runtime initially failed with SQLAlchemy 2.1.7 despite `pip check` passing.
   Pinning SQLAlchemy 2.0.43 fixed startup. NumPy 2.2.6 and SciPy 1.16.1 were also
   pinned; local `pip check` and container `pip check` passed.
-- Forecast run `LOCAL_RUN_ID`: 84 development rows (including
+- Initial forecast run: 84 development rows (including
   17 validation rows after candidate selection), 22 test days. Random forest
   validation MAE 595.2601 versus seasonal naive 764.4706. Test MAE **744.7659**,
   RMSE **950.4587**, seasonal-naive test MAE **889.7727** requests/day.
@@ -169,7 +169,7 @@ historical facts for that checkpoint, not the current full-run status above.
 The **manual Airflow smoke DAG passed**, including all three tasks: saved-sample
 publication, Spark medallion processing, and MLflow-backed training. It used only
 the already archived observations and made no source API download. Training run
-`LOCAL_RUN_ID` reproduced the same evaluation metrics. Spark
+reproduced the same evaluation metrics. Spark
 also wrote the new Gold lag-feature table. Airflow `dags test` reports a synthetic
 run duration based on logical execution time; it is not used as build elapsed time.
 
@@ -268,8 +268,8 @@ to **8:28:55 p.m. Eastern on November 3**, approximately **92m50s** after the me
 start. This is before the 120-minute cutoff. Final tests repeated at handoff:
 **17 passed**, one dependency deprecation warning; Ruff lint and format checks clean.
 
-Created implementation commits: `LOCAL_REVISION` and `LOCAL_REVISION`; documentation is committed
-separately. Original history is preserved. The full Git file list was inspected:
+Implementation and documentation were saved in separate commits. Original private
+history is preserved; publication uses a separately sanitized copy. The full Git file list was inspected:
 no raw observations, models, environments, credentials or runtime logs were tracked.
 No GitHub push, external deployment, credential/account access or full backfill ran.
 

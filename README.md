@@ -67,7 +67,8 @@ Use the existing Python 3.12 environment, or create one with your Python 3.12
 interpreter. The machine's default `python` may be a different version.
 
 ```powershell
-cd C:\Projects\urbanlake
+# Open PowerShell in the cloned repository's root.
+if (-not (Test-Path .venv\Scripts\python.exe)) { py -3.12 -m venv .venv }
 .\.venv\Scripts\python.exe --version
 .\.venv\Scripts\python.exe -m pip install -e '.[dev]'
 .\.venv\Scripts\python.exe -m pytest -q
@@ -79,12 +80,40 @@ docker compose --profile pipeline up -d kafka kafka-init
 
 Docker supplies Java/Spark; no host Java installation is required. Builds download
 runtime dependencies, including approximately 434 MB for PySpark, but do not
-download the source dataset. The public inference release is deployed separately;
-the Git repository has not been pushed to GitHub.
+download the source dataset. The source repository and hosted application release
+are published separately; the data archives and generated runtime artifacts are
+excluded from Git.
 
 ## Full-history workflow
 
-The existing frozen plan and checkpoints resume safely. This command completes
+A fresh clone contains no dataset, model, frozen plan or checkpoints. After the
+quick start has built the images and started Kafka, initialize a source plan once.
+The bounded probe reads source coverage/counts and a small size sample; it does not
+download the full dataset. The plan uses that probe's earliest/latest timestamps,
+with an exclusive end one source millisecond after the latest observed record.
+An existing plan is preserved so a resumed run keeps its original scope.
+
+```powershell
+if (-not (Test-Path data/full/backfill/plan.json)) {
+    .\.venv\Scripts\python.exe scripts/full_source_probe.py
+    if ($LASTEXITCODE -ne 0) { throw "Source probe failed; no plan was created." }
+    $probe = Get-Content artifacts/full-source-probe.json -Raw | ConvertFrom-Json
+    $sourceStart = $probe.summary[0].first_created
+    $sourceEnd = ([datetime]($probe.summary[0].last_created)).AddMilliseconds(1).ToString("yyyy-MM-ddTHH:mm:ss.fff")
+    .\.venv\Scripts\python.exe -m urbanlake.backfill plan --start $sourceStart --end $sourceEnd --root data/full/backfill
+    if ($LASTEXITCODE -ne 0) { throw "Source plan creation failed." }
+}
+docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic urbanlake.full.observations.v1 --partitions 2 --replication-factor 1 --config retention.ms=172800000 --config segment.ms=3600000
+if ($LASTEXITCODE -ne 0) { throw "Full-history Kafka topic creation failed." }
+```
+
+This dedicated full-history topic is required because automatic topic creation is
+disabled. Fresh source queries can return newer or revised records, so a new
+run's scope, totals and model metrics can differ from the recorded build below.
+The complete download can take several hours and tens of gigabytes; the run stops
+before crossing its configured disk reserve.
+
+The frozen plan and checkpoints resume safely. This command completes
 missing source/processing work, independently audits the full lake, trains on all
 complete historical days, and verifies the model and monitoring before reporting
 completion:
@@ -109,7 +138,7 @@ used a separate validation period; serving refits the selected candidate on all
 2,482 feature rows. These are historical one-day-ahead backtests using observed
 lags, with source-revision limitations.
 
-The source currently ends on November 1. The model uses complete data through
+The verified source snapshot ends on November 1. Its model uses complete data through
 October 31, supports a historical **November 1** forecast, and reports
 `source_stale=true`. The full snapshot's latest partial day is retained for
 analytics and excluded from training.

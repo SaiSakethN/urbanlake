@@ -6,8 +6,9 @@ deployment became ready on November 4, 2026 and unauthenticated live HTTP checks
 passed at **03:24:40 EST** for the initial inference/progress release. The complete
 application supersedes that interface. Its source revision and file hashes are
 recorded by the release manifest and deployment evidence under `artifacts/`;
-project identifiers are retained in `deploy/vercel/project.json` so updates reuse
-the same project.
+project identifiers stay in the ignored local `deploy/vercel/project.json` so
+updates reuse the same project. The repository contains only an empty
+`deploy/vercel/project.example.json` template.
 
 The application opens at an analytics overview, with five functional views:
 
@@ -21,9 +22,8 @@ The application opens at an analytics overview, with five functional views:
 - **Architecture:** the implemented pipeline, technologies and hosting boundaries.
 
 Progress is a secondary page at `/progress`; the root URL serves the project app.
-The complete application was deployed as
-`LOCAL_PLATFORM_ID` from source commit
-`LOCAL_REVISION`. Unauthenticated public application
+Private deployment identifiers and traceability records remain in ignored local
+artifacts. Unauthenticated public application
 checks passed at **10:01:48 EST on November 4, 2026**, including the root app,
 metadata, total and filtered analytics, category selection, CSV export, project
 evidence, model identity and actual prediction. The Queens/2026 query returned
@@ -103,8 +103,8 @@ Reproduce the complete app's public checks with:
 
 The result is recorded in `artifacts/public-application-verification.json`.
 
-The published release passed these unauthenticated HTTP checks. Its model version
-is `LOCAL_MODEL_VERSION`; the historical November 1 prediction was **10,922.37** with
+The published release passed these unauthenticated HTTP checks. Its model checksum
+matched the trusted training artifact; the historical November 1 prediction was **10,922.37** with
 `cached=false`. The fixed snapshot reports all **23,008,706 requests**, 83 months,
 100% completion, and its original capture time. Unsupported dates return 422.
 Vercel's build log verified the restored 828,220-byte model and completed the

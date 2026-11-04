@@ -170,7 +170,7 @@ At the first global audit, all lake layers reconciled with their archive at
 **23,008,706**. The audit failed rather than accepting the one-row gap. A live
 boundary probe at **07:48 UTC** reproduced the cause: SoQL interpreted the planned
 exclusive end `2026-11-01T02:06:29.000001` at millisecond precision, excluding the
-source record at `02:06:29.000` (key `12345678`). Querying the equivalent
+source record at `02:06:29.000`. Querying the equivalent
 millisecond-grid end `02:06:29.001` returned the full reference count.
 Socrata's [floating timestamp documentation](https://dev.socrata.com/docs/datatypes/floating_timestamp)
 specifies millisecond precision; the truncation behavior was established by the
@@ -208,8 +208,8 @@ rows**, including **397 validation rows**.
 | Seasonal-naive test MAE | **1,089.7203** |
 | Random-forest test RMSE | 1,166.5870 |
 
-MLflow run **`LOCAL_RUN_ID`** reached **FINISHED**. The
-promoted API reports model version **`LOCAL_MODEL_VERSION`** and the matching full-data
+The full-history MLflow run reached **FINISHED**. Its identifier remains in local
+artifacts. The promoted API reports the verified model checksum and matching full-data
 evaluation metadata. Actual Redis caching was verified: a repeated historical
 November 1 forecast returned **10,922.37 requests** with `cached=true` and the
 promoted model identity. This is a model output, not an observed count. Prometheus

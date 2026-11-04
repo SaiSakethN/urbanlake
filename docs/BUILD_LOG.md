@@ -3,7 +3,7 @@
 Start: 2026-11-03 23:56 UTC (18:56 America/New_York).
 Implementation cutoff: 2026-11-04 01:56 UTC (20:56 America/New_York).
 
-Initial inspection: existing Git commit `LOCAL_REVISION`, `.gitignore`, uncommitted
+Initial inspection: existing Git history, `.gitignore`, uncommitted
 `pyproject.toml` and empty package initializer. Existing files are preserved.
 Host default Python is 3.14.6; existing `.venv` is Python 3.12.10.
 Docker 29.5.2 engine access verified after sandbox permission approval.
@@ -46,8 +46,8 @@ or feature expansion is planned for this build.
 - Data transferred: 200 sampled raw requests and 120 daily aggregate observations.
   Full historical data was never downloaded. Current source freshness and model
   dates are explicitly reported; the build model supports November 1 historically.
-- Git: existing `LOCAL_REVISION` preserved; created `LOCAL_REVISION` (bounded ingestion) and
-  `LOCAL_REVISION` (verified local platform), followed by the documentation/audit commit.
+- Git: existing history preserved; bounded ingestion and the verified local platform
+  were saved separately, followed by the documentation/audit commit.
   Use `git log --oneline` for the final documentation commit ID. No push occurred.
 - Deferred: large/full backfills, actual recent/wider scheduled ingestion,
   GitHub-hosted CI execution, external deployment, scale/failover/security/drift

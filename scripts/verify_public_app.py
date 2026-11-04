@@ -12,6 +12,7 @@ import httpx
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--url", default="https://urbanlake-three.vercel.app")
+parser.add_argument("--expected-model-version", default=None)
 args = parser.parse_args()
 base = args.url.rstrip("/")
 if urlparse(base).scheme != "https":
@@ -55,7 +56,9 @@ with httpx.Client(timeout=60, follow_redirects=True) as client:
     assert project["mode"] == "hosted_app"
     assert get("/ready").json()["cache"] == "disabled"
     model = get("/v1/model").json()
-    assert model["model_version"] == "LOCAL_MODEL_VERSION"
+    assert isinstance(model["model_version"], str) and model["model_version"]
+    if args.expected_model_version:
+        assert model["model_version"] == args.expected_model_version
     response = client.post(
         base + "/v1/predictions/demand",
         json={"schema_version": 1, "target_date": model["supported_target_date"]},
@@ -63,6 +66,7 @@ with httpx.Client(timeout=60, follow_redirects=True) as client:
     response.raise_for_status()
     prediction = response.json()
     assert prediction["predicted_requests"] == 10922.37
+    assert prediction["model_version"] == model["model_version"]
     assert client.get(base + "/v1/analytics", params={"borough": "invalid"}).status_code == 404
     assert get("/progress").status_code == get("/docs").status_code == 200
     result = {
