@@ -12,6 +12,12 @@ labeled 200-record sample. Forecasts use 120 complete citywide aggregate days.
 See [architecture and decisions](docs/ARCHITECTURE.md),
 [verification ledger](docs/VERIFICATION.md), and [build clock](docs/BUILD_LOG.md).
 
+The separately authorized **23,008,706-record full-data extension** uses a new
+partitioned pipeline and an independent lake under `data/full`. Its measured scope,
+resume commands, resource budget and honest completion status are recorded in
+[the full-data run ledger](docs/FULL_DATA_RUN.md). The initial sample audit remains
+available as historical evidence.
+
 ```mermaid
 flowchart LR
     NYC[NYC 311 API] --> I[Bounded ingestion]

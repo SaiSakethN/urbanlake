@@ -1,6 +1,7 @@
 """Export actual pipeline progress and an explicit missing-evidence signal."""
 
 import json
+import os
 from pathlib import Path
 
 from prometheus_client import REGISTRY, start_http_server
@@ -9,7 +10,7 @@ from prometheus_client.core import GaugeMetricFamily
 
 class PipelineCollector:
     def collect(self):
-        path = Path("artifacts/pipeline_metrics.json")
+        path = Path(os.getenv("PIPELINE_METRICS_PATH", "artifacts/pipeline_metrics.json"))
         available = GaugeMetricFamily(
             "urbanlake_pipeline_metrics_available", "Pipeline evidence exists"
         )

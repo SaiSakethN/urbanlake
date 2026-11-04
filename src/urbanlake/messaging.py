@@ -19,6 +19,9 @@ class Publisher:
                 "enable.idempotence": True,
                 "acks": "all",
                 "delivery.timeout.ms": 60000,
+                "compression.type": "zstd",
+                "linger.ms": 20,
+                "batch.size": 262144,
             }
         )
 

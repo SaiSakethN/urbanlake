@@ -1,0 +1,11 @@
+# Serve and monitor the independently verified full-history artifacts.
+services:
+  api:
+    environment:
+      MODEL_PATH: /app/artifacts/full-model.joblib
+  pipeline-exporter:
+    environment:
+      PIPELINE_METRICS_PATH: /app/artifacts/full-pipeline-metrics.json
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:ro
