@@ -3,7 +3,97 @@
 Status is scoped to the evidence below; this is a local portfolio build, not a
 production-readiness certification.
 
-## Initial build checks (historical notes)
+## Full-data extension: current evidence
+
+The user authorized a complete historical backfill after the initial bounded
+build. It **completed at 2026-11-04 07:59:08 UTC (02:59:08 EST, November 4)**:
+all **83 source months** are downloaded and finalized, containing **23,008,706
+archived observations**, matching the measured source reference. Independent
+global validation, full-history training, MLflow tracking, and promoted-model
+serving checks all passed. The live progress page now reports **100%**.
+
+| Full-data check | Evidence / current status |
+|---|---|
+| Frozen logical scope | `[2020-01-01, 2026-11-01T02:06:29.000001)`, 83 months |
+| Source archives | 23,008,706 records; all source manifests complete |
+| Kafka / Spark monthly pipeline | Complete: 83/83 months finalized |
+| Independent full-lake audit | **Passed**: 23,008,706 unique observations/source keys and matching Silver/Gold totals |
+| Full-history model / tracked MLflow run | **Passed**: 497 test days; FINISHED run `LOCAL_RUN_ID` |
+| Full-model serving / Redis / monitoring | **Passed**: model `LOCAL_MODEL_VERSION`, actual cache hit, monitored full counts |
+| Restored service health | **Passed at 08:00:54 UTC**: API, MLflow, Prometheus, Grafana, and Airflow |
+| Latest whole unit suite | **64 passed** |
+| Ruff lint / format | **Passed**, 43 files checked |
+| Update scheduling | Manual runs selected; all three DAGs paused, `schedule=None`, `catchup=False` |
+| GitHub / cloud publication | Not authorized; not performed |
+
+The first global audit found **23,008,705** matching archived/Bronze/Silver/Gold
+records and failed because the independently measured source count was
+**23,008,706**. A live query probe isolated the missing final timestamp: SoQL
+truncated the sub-millisecond exclusive end, excluding source key `12345678` at
+`2026-11-01T02:06:29.000`. The corrected query ceilings both bounds to the source's
+millisecond grid while retaining the exact logical plan and observed cursors.
+The final month now contains **1,540** records instead of 1,539; the missing row
+was appended as one checksummed archive page and relayed through Kafka. Archives,
+the Kafka checkpoint, and the immutable plan were preserved. Timestamp regression
+tests are included in the 64-test suite.
+
+The repaired independent audit now reports **23,008,706** for archive records,
+Bronze rows/distinct observation IDs/distinct source keys, Silver rows/distinct
+keys, and both Gold request totals, with **0 invalid requests**. There are
+**2,497 daily demand rows**; the partial November 1 source day is excluded from
+the **2,496 complete-day export**, which produces **2,482 feature rows**.
+
+The selected random forest used **1,985 development rows** including **397
+validation rows**, then **497 chronological held-out test days**. Validation MAE
+was **772.7431** versus seasonal-naive **1,092.4307**. Test MAE was **788.3973**
+versus seasonal-naive **1,089.7203**; test RMSE was **1,166.5870 requests/day**.
+The promoted model's real cached historical November 1 prediction was
+**10,922.37 requests**. Prometheus reported both full-run Bronze and Silver
+counts as **23,008,706**.
+
+Final service checks at **08:00:54 UTC** passed API health/readiness with cache
+available, the progress endpoint at **100%**, MLflow health, Prometheus readiness,
+Grafana database health and its **eight-panel dashboard**, and Airflow's
+metadatabase, scheduler, and triggerer health. At **08:01 UTC**, the restored
+Airflow container loaded all three DAGs without import errors; all were paused
+with `schedule=None` and `catchup=False`. The current DAGs are mounted read-only
+by the full-run override. The unrelated pre-existing Airflow project was untouched.
+
+The source remains stale. The model's last complete training day is **October
+31, 2026**, supporting **November 1, 2026** as its target. At verification the
+API reported `source_stale=true` and `data_age_days=4`; it does not present this
+historical target as a current-date forecast. The source observations are
+count-reconciled mutable API data, not CDC or a transactional point-in-time
+snapshot. No confidence intervals, drift monitor, or production-quality guarantee
+was established.
+
+Authoritative evidence: monthly source manifests and
+`data/full/backfill/pipeline.json`; `artifacts/full-boundary-probe.json`;
+`artifacts/boundary-recovery-20261104/repair.json` (backup hashes and repair
+identity); the passed `artifacts/full-verification.json`;
+`artifacts/full-model.metrics.json`; and the completed
+`artifacts/full-project-status.json`, including model identity, actual cached
+prediction, monitoring counts, and finish time. Final restored service evidence
+is in `artifacts/full-services-result.json`. The old failed audit remains in
+the hashed boundary-recovery backup. Details and reproduction commands are in
+[FULL_DATA_RUN.md](FULL_DATA_RUN.md).
+
+The full-data coordinator implements affected-key Silver MERGEs and
+affected-partition Gold updates; the rebuild-only limitation in the historical
+initial-build notes below describes the original bounded path. Multi-node
+operation, broker failover, concurrent writers, atomic multi-table publication,
+backup restoration, CDC/deletions, public API security, external alert delivery,
+and GitHub-hosted CI/CD remain outside verified scope. Browser automation was
+unavailable for the progress page, so visual browser QA is not claimed.
+
+## Initial bounded build: historical audit
+
+The remainder preserves the **01:28:55 UTC** initial handoff on November 4, 2026,
+before the separately authorized full-data extension. Its 17-test result, sample
+counts, limited 120-day model, and statements that no full backfill had run are
+historical facts for that checkpoint, not the current full-run status above.
+
+### Early initial-build checks
 
 - Existing virtual environment: Python 3.12.10.
 - Docker engine 29.5.2 and Compose 5.1.3 responded successfully.
@@ -23,7 +113,7 @@ production-readiness certification.
   `kafka-topics.sh --version`. Broker passed healthcheck and topic init started.
   This cache-specific override is not a portable public image dependency.
 
-## Final component ledger
+### Initial component ledger
 
 | Component | Configured | Implemented | Verified scope |
 |---|---|---|---|
@@ -38,7 +128,7 @@ production-readiness certification.
 | GitHub Actions CI | yes | yes | constituent checks ran locally; remote CI not run |
 | External CD / GitHub publishing | no | intentionally deferred | no push/deployment authorized |
 
-## Additional runtime evidence
+### Initial runtime evidence
 
 - Kafka acknowledged **320** archived observations. Initial live-source Spark run
   produced 320 Bronze observations, 200 Silver keys, 120 daily demand rows, and
@@ -101,7 +191,7 @@ the smoke DAG trained its new artifact, and real service verification passed aga
 including an MLflow REST read of the FINISHED run and metric equality with the
 local evaluation report.
 
-## Failures and fixes
+### Initial failures and fixes
 
 - Sandbox denied initial network/Docker access; explicitly approved execution
   succeeded. No host Java/Spark installation was made.
@@ -124,16 +214,17 @@ local evaluation report.
   feature schema guidance, native Hadoop fallback, and global windows on the small
   citywide daily series. None is represented as a failed test or silently hidden.
 
-## Scope and production gaps
+### Scope at the initial bounded handoff
 
-This verifies a bounded local vertical slice. It does **not** verify 23-million-row
+The initial build verified a bounded local vertical slice. At that checkpoint,
+it did **not** verify 23-million-row
 scale, real multi-node distribution, broker failover, mid-commit crash recovery,
 backup restoration, all historical source changes, source deletions, cloud storage,
 public API security, model drift, fired alert delivery, visual dashboard rendering,
 or GitHub-hosted CI/CD. Historical batch requests are implemented as bounded date
-windows; a full raw historical backfill was not downloaded or run.
+windows; a full raw historical backfill had not yet been downloaded or run.
 
-Silver/Gold currently rebuild from Bronze and publish separate transactions plus
+The initial bounded Silver/Gold path rebuilds from Bronze and publishes separate transactions plus
 a CSV feature-input export. One writer is required. This is recoverable by replay,
 but not an atomic multi-table publication or a full-scale incremental lakehouse.
 Successful source-window manifests are local artifacts rather than a durable
@@ -146,7 +237,12 @@ intervals, extensive tuning, drift monitor or production-quality guarantee exist
 The source was stale at inspection; the model supports a historical November 1
 forecast and explicitly advertises that limitation.
 
-## Next production milestones
+### Follow-up list from the initial handoff
+
+This list was recorded before the full-data extension. Affected-key MERGEs,
+partition updates, source manifests, and the full historical run are addressed
+by the new coordinator described above; remaining items still require their own
+verification.
 
 1. Establish and monitor source availability/completeness and persist ingestion
    coverage/manifests in Delta; collect immutable point-in-time snapshots over time.
@@ -165,7 +261,7 @@ No secrets, virtual environment, raw source data, model binaries, logs, or gener
 runtime artifacts are intended for Git. Git commit IDs and final elapsed time are
 recorded in the concluding build audit.
 
-## Final handoff
+### Initial handoff
 
 Implementation/audit checkpoint: **01:28:55 UTC on November 4, 2026**, corresponding
 to **8:28:55 p.m. Eastern on November 3**, approximately **92m50s** after the measured

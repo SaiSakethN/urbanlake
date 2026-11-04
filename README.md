@@ -5,18 +5,22 @@ An urban-service lakehouse and demand-forecasting platform built with official N
 processing, SQL analytics, chronological ML evaluation, MLflow, FastAPI/Redis,
 Airflow, and operational metrics on a Windows development machine.
 
-**Local portfolio implementation; not production certified.** Source polling is
-reconciliation, **not CDC**. The initial request analytics cover an explicitly
-labeled 200-record sample. Forecasts use 120 complete citywide aggregate days.
+**Verified local portfolio implementation; not production certified.** The full
+source snapshot contains **23,008,706 requests across 83 monthly partitions**,
+from January 2020 through the source's partial November 1, 2026. Its archive,
+Kafka/Delta Bronze, unique Silver keys, and Gold totals reconcile exactly.
+Forecast training uses **2,496 complete citywide days** through October 31, 2026.
+Source polling is reconciliation, **not CDC**.
 
 See [architecture and decisions](docs/ARCHITECTURE.md),
 [verification ledger](docs/VERIFICATION.md), and [build clock](docs/BUILD_LOG.md).
 
-The separately authorized **23,008,706-record full-data extension** uses a new
-partitioned pipeline and an independent lake under `data/full`. Its measured scope,
-resume commands, resource budget and honest completion status are recorded in
-[the full-data run ledger](docs/FULL_DATA_RUN.md). The initial sample audit remains
-available as historical evidence.
+The full-data pipeline and independent lake are under `data/full`. The global
+audit, full-history training, model promotion, actual Redis cache hit, and full
+Prometheus counts passed on **November 4, 2026**. See
+[the full-data run ledger](docs/FULL_DATA_RUN.md) for evidence, resume commands,
+resource limits, and the timestamp-boundary repair. The initial 200-request /
+120-day sample audit remains available as historical evidence.
 
 **Live progress:** open http://localhost:8000/progress while the job runs. The page
 refreshes every two seconds from actual saved job state, with separate download
@@ -69,6 +73,38 @@ Docker supplies Java/Spark; no host Java installation is required. Builds downlo
 runtime dependencies, including approximately 434 MB for PySpark, but do not
 download the source dataset. No GitHub push or external deployment is performed.
 
+## Full-history workflow
+
+The existing frozen plan and checkpoints resume safely. This command completes
+missing source/processing work, independently audits the full lake, trains on all
+complete historical days, and verifies the model and monitoring before reporting
+completion:
+
+```powershell
+.\.venv\Scripts\python.exe -m urbanlake.full_project --status
+.\.venv\Scripts\python.exe -m urbanlake.full_project --prefetch
+# Preserve full-model selection when starting serving services later:
+docker compose -f compose.yaml -f compose.full.yaml up -d api pipeline-exporter prometheus grafana
+```
+
+The run uses compressed source pages with checksums, acknowledged Kafka relay
+state, a dedicated topic/checkpoint, partitioned Delta tables, affected-key Silver
+MERGEs, and affected-month Gold refreshes. Re-running this command resumes the
+fixed historical scope; it does not advance the source cutoff. Recent/wider
+reconciliation workflows remain manual and operate on the separate bounded lake.
+No automatic laptop update schedule was installed.
+
+The deployed random forest scored **788.40 requests/day MAE** on **497 chronological
+test days**, versus **1,089.72** for the seasonal-naive baseline. Candidate selection
+used a separate validation period; serving refits the selected candidate on all
+2,482 feature rows. These are historical one-day-ahead backtests using observed
+lags, with source-revision limitations.
+
+The source currently ends on November 1. The model uses complete data through
+October 31, supports a historical **November 1** forecast, and reports
+`source_stale=true`. The full snapshot's latest partial day is retained for
+analytics and excluded from training.
+
 ## Reproduce the bounded source workflow
 
 The following fixed window reproduced the build. Source data can be revised, so
@@ -102,7 +138,7 @@ differences. `data/gold/daily_requests` contains grouped request analytics;
 `daily_demand` and `daily_demand_features` contain citywide demand and lag features.
 SQL definitions live in [sql](sql). See [recovery and coverage semantics](docs/ARCHITECTURE.md).
 
-## Train and serve
+## Reproduce bounded training and serving
 
 Start ML services only when needed; wait for their actual healthchecks.
 
@@ -123,7 +159,7 @@ chooses random forest versus the seasonal-naive lag-seven baseline; a separate
 Those are small-sample backtest results, not a guarantee of current model quality.
 Historical source corrections remain a point-in-time evaluation limitation.
 
-The build model has `as_of_date=2026-10-31` and only supports a forecast for
+The initial bounded model has `as_of_date=2026-10-31` and only supports a forecast for
 `2026-11-01`. The API exposes `source_stale` and `supported_target_date` and refuses
 unsupported dates. Restart `api` after retraining (`docker compose restart api`).
 Redis cache keys include the loaded model's hash; a Redis outage falls back to
@@ -131,6 +167,7 @@ direct inference. Load only trusted local model artifacts: joblib can execute co
 
 | Local service | Address |
 |---|---|
+| Full-data progress | http://localhost:8000/progress |
 | API docs | http://localhost:8000/docs |
 | API health / readiness | http://localhost:8000/health / http://localhost:8000/ready |
 | MLflow | http://localhost:5000 |
@@ -195,14 +232,16 @@ docker compose stop airflow mlflow
 docker compose --profile pipeline --profile ml --profile serve --profile monitoring --profile orchestration down
 ```
 
-Do not remove volumes or checkpoints casually. Kafka retains seven days of data;
-lost offsets fail loudly. A new broker/lake needs its own checkpoint. A single
+Do not remove volumes or checkpoints casually. The bounded topic retains seven
+days of data; the full-history topic retains two days. Archived source pages
+remain available for explicit replay.
+Lost offsets fail loudly. A new broker/lake needs its own checkpoint. A single
 medallion writer is required; retries recover derived layers from Bronze after
-partial multi-table writes. Full rebuilds are a bounded-scale design and must
-be replaced with affected-key/partition updates before full-dataset operation.
+partial multi-table writes. The bounded processor rebuilds its derived tables;
+the full-data processor uses affected-key and affected-partition updates.
 
 Production work still includes authentication/TLS, secret management, replicated
-Kafka, object storage, source coverage manifests, incremental derived updates,
+Kafka, object storage, stronger source-availability monitoring,
 backup/restore drills, model monitoring, stronger data contracts, and load tests.
 The [verification audit](docs/VERIFICATION.md) distinguishes implemented behavior
 from configured components and lists the exact checks that actually ran.

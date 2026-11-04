@@ -1,9 +1,14 @@
 # UrbanLake design decisions
 
+The full-history extension completed and independently reconciled **23,008,706
+requests** across 83 months. Its measured evidence and runtime paths are in
+[the full-data ledger](FULL_DATA_RUN.md). The bounded workflow remains available
+for fixtures and manual reconciliation in its separate lake.
+
 ```mermaid
 flowchart TD
     NYC[Official NYC 311 SODA API] --> I[Bounded historical windows / recent polling / wider reconciliation]
-    I --> K[Kafka KRaft: urbanlake.observations.v1]
+    I --> K[Kafka KRaft: bounded and full-history topics]
     K --> S[Spark Structured Streaming: availableNow or continuous]
     S --> B[Delta Bronze observations + quarantine]
     B --> V[Delta Silver latest requests + observed changes]
@@ -13,7 +18,7 @@ flowchart TD
     ML --> MF[MLflow / PostgreSQL]
     ML --> A[FastAPI versioned next-day prediction]
     A --> R[Redis model-versioned cache]
-    AF[Airflow paused bounded DAGs] --> I
+    AF[Airflow manual bounded DAGs] --> I
     AF --> S
     AF --> ML
     P[Prometheus + Grafana] --> A
@@ -43,13 +48,22 @@ retrying one logical ingestion, not for unrelated polling runs.
 means **we observed a difference**, not when the source changed or a service
 transition happened. Intermediate source states may never have been observed.
 
-CLI ingestion requires explicit start/end dates, limits individual windows to
+The bounded CLI requires explicit start/end dates, limits individual windows to
 366 days and request counts to 100,000. Pagination uses `(created_date, unique_key)`.
 The cap throws an error instead of claiming a complete window. Initial 200-row
 request ingestion is explicitly marked `coverage=bounded_sample`, `complete=false`.
-Gold request totals therefore describe only ingested records and cannot be
-presented as citywide backlog or complaint proportions. Citywide forecasting
-uses a separate complete API aggregate query; it never trains on sample totals.
+Its request totals describe the sample. Its forecasting path uses a separate
+complete API aggregate query and never trains on sample totals. The full-history
+path instead archives all monthly request pages, reconciles their before/after
+source counts, and derives complete citywide daily demand from full Silver data.
+The final latest source day is excluded from model training.
+
+Full-history query bounds use the source's millisecond precision while preserving
+the logical half-open plan interval. Both bounds are rounded up to that grid;
+observed keyset cursor values retain their exact source representation. This
+includes the final source record when the logical end is one microsecond after
+the observed maximum. The source plan and monthly coverage evidence are durable
+local artifacts rather than a transactional source snapshot.
 
 Daily aggregation requires contiguous unique days and excludes the latest source
 day. This is a conservative completeness proxy, not proof of source finality:
@@ -61,7 +75,9 @@ No missing date is silently filled with zero.
 Kafka producers use idempotence and `acks=all`, and fail if any delivery fails.
 Keys are `kind:source_key`; a request's messages share one partition.
 The local broker has one replica, so `acks=all` is not high availability.
-Default retention is seven days. Checkpoints preserve Spark offsets; loss of
+The bounded topic retains seven days; the full-history topic retains two days.
+Compressed full-history observation pages remain available for explicit replay.
+Checkpoints preserve Spark offsets; loss of
 retained offsets fails loudly through `failOnDataLoss=true`.
 
 Spark parses the versioned envelope, checks required fields, schema version and
@@ -71,10 +87,13 @@ retains content-difference history derived from Bronze. Equal observation times
 use a deterministic observation-ID tiebreaker; the source cannot establish a
 true ordering of simultaneous contradictory snapshots.
 
-This demonstration rebuilds derived Silver/Gold tables from Bronze. That is
-simple and recoverable at bounded scale, but **not suitable for a 23-million-row
-full-history refresh per microbatch**. Before scaling, incrementally MERGE affected
-keys, recompute affected Gold partitions and persist quality/coverage manifests.
+The bounded processor rebuilds derived Silver/Gold tables from Bronze. The
+full-history processor uses partition-pruned Bronze MERGEs, affected-key Silver
+MERGEs, and affected-month Gold refreshes. A Delta key index locates previous
+creation months when source corrections move a request across month boundaries.
+Completed-month manifests and processing markers gate coverage; a separate global
+audit checks archive, Bronze/Silver uniqueness, Gold totals, and model-date cutoff.
+Only the small citywide daily series is rebuilt globally for feature export.
 One writer is required. Separate Delta tables and CSV exports are not an atomic
 multi-table transaction; retrying from Bronze repairs partial derived updates.
 Kafka checkpoints must never be shared between independent lakes.
@@ -121,10 +140,13 @@ Joblib is executable serialization and only trusted local artifacts may be loade
 Profiles separate pipeline, compute, ML, serving, orchestration, monitoring and
 one-shot jobs. The full stack is not intended to run together on a 16-GB laptop.
 Airflow uses its own constrained virtual environment inside Docker so its dependencies
-cannot replace application ML/Spark versions. Its DAGs start paused; recent polling
-is three bounded created-date days, and weekly wider polling revisits 14 created-date
-days (at most 280,000 records per run). Wider reconciliation starts paused and was
-not run during this build; enabling it requires accepting that data/resource budget.
+cannot replace application ML/Spark versions. All three DAGs have `schedule=None`
+and start paused, honoring manual updates. Recent reconciliation covers three
+bounded created-date days; wider reconciliation revisits 14 created-date days
+(at most 280,000 records per run). These workflows target the separate bounded
+lake. The full-history coordinator resumes its frozen plan and does not silently
+advance the source cutoff. Wider reconciliation was not run during this build;
+triggering it requires reviewing that data/resource budget.
 Changes outside the lookback remain undetected.
 Training is orchestrated after processing, but API model reload is a deliberate restart.
 
