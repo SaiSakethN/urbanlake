@@ -1,4 +1,12 @@
-from scripts.prepare_github_publication import redact, sanitize_export
+import importlib.util
+from pathlib import Path
+
+source = Path(__file__).resolve().parents[1] / "scripts/prepare_github_publication.py"
+specification = importlib.util.spec_from_file_location("publication_fixture", source)
+publication = importlib.util.module_from_spec(specification)
+specification.loader.exec_module(publication)
+redact = publication.redact
+sanitize_export = publication.sanitize_export
 
 
 def test_public_export_preserves_lengths_and_drops_private_config():
