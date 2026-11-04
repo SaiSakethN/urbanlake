@@ -1,0 +1,180 @@
+name: urbanlake
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: infra/Dockerfile
+    target: app
+  image: urbanlake-app:local
+  environment: &environment
+    KAFKA_BOOTSTRAP: kafka:9092
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+    REDIS_URL: redis://redis:6379/0
+    MODEL_PATH: /app/artifacts/model.joblib
+    SPARK_CHECKPOINT: /app/data/checkpoints/kafka401-observations-v1
+    SOCRATA_APP_TOKEN: ${SOCRATA_APP_TOKEN:-}
+  volumes:
+    - ./data:/app/data
+    - ./artifacts:/app/artifacts
+
+services:
+  kafka:
+    image: urbanlake-kafka:4.0.1
+    build:
+      context: .
+      dockerfile: infra/kafka.Dockerfile
+    profiles: [pipeline]
+    ports: ["127.0.0.1:19092:19092"]
+    mem_limit: 1200m
+    environment:
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    volumes: ["kafka-source-data:/var/lib/kafka/data"]
+    healthcheck:
+      test: [CMD-SHELL, "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 18
+  kafka-init:
+    image: urbanlake-kafka:4.0.1
+    profiles: [pipeline]
+    depends_on:
+      kafka: {condition: service_healthy}
+    entrypoint: /opt/kafka/bin/kafka-topics.sh
+    command: [--bootstrap-server, kafka:9092, --create, --if-not-exists, --topic, urbanlake.observations.v1, --partitions, "2", --replication-factor, "1"]
+    mem_limit: 512m
+  ingest:
+    <<: *app
+    profiles: [jobs]
+    entrypoint: urbanlake
+    command: [--help]
+    mem_limit: 512m
+  spark:
+    <<: *app
+    profiles: [compute]
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+      target: spark
+    image: urbanlake-spark:local
+    mem_limit: 4g
+    environment:
+      <<: *environment
+      SPARK_LOCAL_IP: 127.0.0.1
+      PYSPARK_PYTHON: python
+    entrypoint: urbanlake
+    command: [process]
+  postgres:
+    image: postgres:15-alpine@sha256:3d0f7584ed7d04e27fa050d6683a74746608faf21f202be78460d679cc56461f
+    profiles: [ml, orchestration]
+    environment:
+      POSTGRES_USER: urbanlake
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-urbanlake-local}
+      POSTGRES_DB: urbanlake
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-airflow.sql:ro
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U urbanlake"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  mlflow:
+    <<: *app
+    profiles: [ml]
+    ports: ["127.0.0.1:5000:5000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-urbanlake-local}
+    command: [sh, -c, "mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri postgresql://urbanlake:$$PGPASSWORD@postgres:5432/urbanlake --artifacts-destination /app/artifacts/mlflow --serve-artifacts"]
+    mem_limit: 1200m
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: urbanlake-redis:bookworm
+    build:
+      context: .
+      dockerfile: infra/redis.Dockerfile
+    profiles: [serve]
+    ports: ["127.0.0.1:6379:6379"]
+    command: [redis-server, --bind, 0.0.0.0, --protected-mode, "no", --save, "", --appendonly, "no", --maxmemory, 128mb, --maxmemory-policy, allkeys-lru]
+    mem_limit: 192m
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  api:
+    <<: *app
+    profiles: [serve]
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      redis: {condition: service_healthy}
+    mem_limit: 768m
+  train:
+    <<: *app
+    profiles: [jobs]
+    entrypoint: urbanlake
+    command: [train]
+    mem_limit: 1200m
+  airflow:
+    <<: *app
+    profiles: [orchestration]
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+      target: airflow
+    image: urbanlake-airflow:local
+    ports: ["127.0.0.1:8081:8080"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      <<: *environment
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://urbanlake:${POSTGRES_PASSWORD:-urbanlake-local}@postgres:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__PARALLELISM: "1"
+      AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "1"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /app/dags
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      SPARK_LOCAL_IP: 127.0.0.1
+      PYSPARK_PYTHON: /usr/local/bin/python
+    mem_limit: 5g
+  pipeline-exporter:
+    <<: *app
+    profiles: [monitoring]
+    command: [python, -m, urbanlake.monitoring]
+    mem_limit: 256m
+  prometheus:
+    image: quay.io/prometheus/prometheus:v3.5.0
+    profiles: [monitoring]
+    ports: ["127.0.0.1:9090:9090"]
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=7d]
+    mem_limit: 512m
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: [monitoring]
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    mem_limit: 384m
+
+volumes:
+  kafka-source-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data:

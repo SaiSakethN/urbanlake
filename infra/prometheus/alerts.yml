@@ -1,0 +1,23 @@
+groups:
+  - name: urbanlake
+    rules:
+      - alert: UrbanLakeApiDown
+        expr: up{job="urbanlake-api"} == 0
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "UrbanLake API scrape failed for two minutes"}
+      - alert: UrbanLakePipelineStale
+        expr: time() - urbanlake_pipeline_last_success_unixtime > 90000
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "No successful pipeline run in 25 hours"}
+      - alert: UrbanLakePipelineNeverRan
+        expr: urbanlake_pipeline_metrics_available == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "No pipeline success evidence is available"}
+      - alert: UrbanLakeInvalidRequests
+        expr: urbanlake_pipeline_invalid_requests > 0
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: "Silver request validation rejected records"}

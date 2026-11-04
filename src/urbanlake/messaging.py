@@ -10,7 +10,8 @@ TOPIC = "urbanlake.observations.v1"
 
 
 class Publisher:
-    def __init__(self, bootstrap: str | None = None):
+    def __init__(self, bootstrap: str | None = None, topic: str = TOPIC):
+        self.topic = topic
         self.errors = []
         self.producer = Producer(
             {
@@ -29,7 +30,7 @@ class Publisher:
         for _ in range(100):
             try:
                 self.producer.produce(
-                    TOPIC,
+                    self.topic,
                     key=f"{observation.kind}:{observation.source_key}",
                     value=observation.model_dump_json(),
                     on_delivery=self.delivered,

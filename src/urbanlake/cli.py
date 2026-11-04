@@ -3,6 +3,8 @@
 import argparse
 import json
 import logging
+import os
+import re
 from datetime import UTC, date, datetime
 from itertools import islice
 from pathlib import Path
@@ -17,7 +19,11 @@ log = logging.getLogger("urbanlake")
 def ingest(args):
     from urbanlake.messaging import Publisher
 
+    if args.sample_limit is not None and not 1 <= args.sample_limit <= 5000:
+        raise ValueError("sample-limit must be 1..5000")
     run_id = args.run_id or str(uuid4())
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", run_id):
+        raise ValueError("run-id must use 1..128 letters, digits, underscores or hyphens")
     observed_at = datetime.now(UTC)
     publisher = None if args.output else Publisher()
     handle = None
@@ -89,8 +95,11 @@ def main():
     command = sub.add_parser("process")
     command.add_argument("--input", help="JSONL input; default reads Kafka with availableNow")
     command.add_argument("--lake", default="data")
-    command.add_argument("--checkpoint", default="data/checkpoints/observations-v1")
+    command.add_argument(
+        "--checkpoint", default=os.getenv("SPARK_CHECKPOINT", "data/checkpoints/observations-v1")
+    )
     command.add_argument("--continuous", action="store_true")
+    command.add_argument("--topic", default="urbanlake.observations.v1")
     command.set_defaults(func=lambda a: __import__("urbanlake.processing", fromlist=["run"]).run(a))
     command = sub.add_parser("train")
     command.add_argument("--input", default="data/gold/demand_export")

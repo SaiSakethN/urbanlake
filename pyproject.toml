@@ -13,6 +13,7 @@ dependencies = [
   "uvicorn==0.35.0", "confluent-kafka==2.11.1", "redis==6.4.0",
   "prometheus-client==0.22.1", "pandas==2.3.1", "scikit-learn==1.7.1",
   "joblib==1.5.1", "mlflow==3.2.0", "psycopg2-binary==2.9.10",
+  "sqlalchemy==2.0.43", "numpy==2.2.6", "scipy==1.16.1",
 ]
 
 [project.optional-dependencies]
@@ -27,7 +28,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--basetemp=.pytest_tmp"
 markers = ["integration: requires Docker services", "spark: requires Java and Spark"]
 
 [tool.ruff]

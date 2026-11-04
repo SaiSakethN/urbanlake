@@ -1,0 +1,18 @@
+{
+  "uid": "urbanlake-operations",
+  "title": "UrbanLake Operations",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {"id": 1, "title": "API up", "type": "stat", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 5}, "datasource": {"uid": "prometheus"}, "targets": [{"expr": "up{job=\"urbanlake-api\"}"}]},
+    {"id": 2, "title": "Bronze observations", "type": "stat", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 5}, "datasource": {"uid": "prometheus"}, "targets": [{"expr": "urbanlake_pipeline_bronze_observations"}]},
+    {"id": 3, "title": "Silver requests", "type": "stat", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 5}, "datasource": {"uid": "prometheus"}, "targets": [{"expr": "urbanlake_pipeline_silver_requests"}]},
+    {"id": 4, "title": "Pipeline age (seconds)", "type": "stat", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 5}, "datasource": {"uid": "prometheus"}, "targets": [{"expr": "time() - urbanlake_pipeline_last_success_unixtime"}]},
+    {"id": 5, "title": "API latency p95", "type": "timeseries", "gridPos": {"x": 0, "y": 5, "w": 12, "h": 8}, "datasource": {"uid": "prometheus"}, "targets": [{"expr": "histogram_quantile(0.95, sum by(le) (rate(urbanlake_http_seconds_bucket[5m])))"}]},
+    {"id": 6, "title": "Prediction cache outcomes", "type": "timeseries", "gridPos": {"x": 12, "y": 5, "w": 12, "h": 8}, "datasource": {"uid": "prometheus"}, "targets": [{"expr": "sum by(outcome) (rate(urbanlake_prediction_cache_total[5m]))", "legendFormat": "{{outcome}}"}]},
+    {"id": 7, "title": "Observed record changes", "type": "stat", "gridPos": {"x": 0, "y": 13, "w": 12, "h": 5}, "datasource": {"uid": "prometheus"}, "targets": [{"expr": "urbanlake_pipeline_observed_changes"}]},
+    {"id": 8, "title": "Invalid request observations", "type": "stat", "gridPos": {"x": 12, "y": 13, "w": 12, "h": 5}, "datasource": {"uid": "prometheus"}, "targets": [{"expr": "urbanlake_pipeline_invalid_requests"}]}
+  ]
+}

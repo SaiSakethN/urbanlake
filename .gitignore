@@ -17,6 +17,7 @@ build/
 *.key
 
 # Local datasets and generated outputs
+data/
 data/raw/
 data/bronze/
 data/silver/
@@ -45,3 +46,4 @@ tmp/
 Thumbs.db
 pip/
 .pytest_tmp/
+.test-runs/

@@ -1,0 +1,40 @@
+name: UrbanLake CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e '.[dev]'
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pytest -q
+      - run: pip check
+      - run: docker compose config --quiet
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build kafka
+      - run: docker compose --profile pipeline up -d kafka kafka-init
+      - run: docker compose build spark
+      - run: docker compose run --rm --entrypoint python -v ./scripts:/app/scripts:ro spark /app/scripts/integration.py
+      - if: always()
+        run: docker compose --profile pipeline logs --no-color kafka kafka-init
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-evidence
+          path: artifacts/integration-result.json
+      - if: always()
+        run: docker compose --profile pipeline down
