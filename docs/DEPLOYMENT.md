@@ -1,5 +1,12 @@
 # Free hosted model demo
 
+**Live:** [urbanlake-three.vercel.app](https://urbanlake-three.vercel.app)
+([API documentation](https://urbanlake-three.vercel.app/docs)). The production
+deployment became ready on November 4, 2026 and unauthenticated live HTTP checks
+passed at **03:24:40 EST**. The exact release is local commit
+`LOCAL_REVISION`; project identifiers are retained in
+`deploy/vercel/project.json` so future releases reuse the same project.
+
 UrbanLake's public release serves the trained FastAPI model, API documentation,
 and a captured dashboard of the independently verified full-data run. Kafka,
 Spark/Delta, Airflow, MLflow, Redis, and the raw request archive remain on the
@@ -49,3 +56,16 @@ and an actual POST to `/v1/predictions/demand`. The returned model version must
 match the trusted release. Keep the source cutoff visible: this model uses
 complete data through October 31, 2026 and supports a historical November 1
 forecast. It cannot forecast the current day from stale data.
+
+The published release passed these unauthenticated HTTP checks. Its model version
+is `LOCAL_MODEL_VERSION`; the historical November 1 prediction was **10,922.37** with
+`cached=false`. The fixed snapshot reports all **23,008,706 requests**, 83 months,
+100% completion, and its original capture time. Unsupported dates return 422.
+Vercel's build log verified the restored 828,220-byte model and completed the
+deployment. No paid resources or account-plan upgrades were created.
+
+Live results and provider identifiers are saved under ignored
+`artifacts/public-deployment-verification.json` and `artifacts/public-deployment.json`.
+Visual browser verification was unavailable because the browser access host was
+unavailable. The hosted/local JavaScript interaction checks and actual HTTP
+model/prediction checks passed; no screenshot verification is claimed.

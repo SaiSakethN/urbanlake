@@ -5,6 +5,12 @@ An urban-service lakehouse and demand-forecasting platform built with official N
 processing, SQL analytics, chronological ML evaluation, MLflow, FastAPI/Redis,
 Airflow, and operational metrics on a Windows development machine.
 
+**Hosted demo:** [Open UrbanLake](https://urbanlake-three.vercel.app) ·
+[Public API docs](https://urbanlake-three.vercel.app/docs).
+The free hosted release runs real model inference and displays a captured audit
+of the completed local run. The full dataset and data-engineering services stay
+on the laptop. See [deployment scope and verification](docs/DEPLOYMENT.md).
+
 **Verified local portfolio implementation; not production certified.** The full
 source snapshot contains **23,008,706 requests across 83 monthly partitions**,
 from January 2020 through the source's partial November 1, 2026. Its archive,
@@ -71,7 +77,8 @@ docker compose --profile pipeline up -d kafka kafka-init
 
 Docker supplies Java/Spark; no host Java installation is required. Builds download
 runtime dependencies, including approximately 434 MB for PySpark, but do not
-download the source dataset. No GitHub push or external deployment is performed.
+download the source dataset. The public inference release is deployed separately;
+the Git repository has not been pushed to GitHub.
 
 ## Full-history workflow
 
