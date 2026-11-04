@@ -7,16 +7,35 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+from urbanlake.analytics import validate_artifact
 from urbanlake.progress import snapshot
+from urbanlake.project_summary import build as project_overview
 
 SOURCE_FILES = (
     "__init__.py",
     "api.py",
     "ml.py",
     "progress.py",
+    "analytics.py",
+    "project_summary.py",
     "static/progress.html",
+    "static/app.html",
 )
 CONFIG_FILES = ("app.py", "pyproject.toml", "vercel.json", ".python-version", "build.py")
+ANALYTICS_FIELDS = {
+    "schema_version",
+    "captured_at",
+    "source_start",
+    "source_end",
+    "source_records",
+    "excluded_latest_source_day",
+    "months",
+    "boroughs",
+    "categories",
+    "facts",
+    "daily",
+    "semantics",
+}
 
 
 def prepare(workspace: Path, destination: Path):
@@ -30,6 +49,19 @@ def prepare(workspace: Path, destination: Path):
         raise ValueError("only a verified complete project may be released")
     if audit.get("status") != "passed":
         raise ValueError("full-data audit has not passed")
+    analytics_bytes = (workspace / "artifacts/public-analytics.json.gz").read_bytes()
+    analytics = json.loads(gzip.decompress(analytics_bytes))
+    if set(analytics) != ANALYTICS_FIELDS:
+        raise ValueError("public analytics contain unreviewed fields")
+    validate_artifact(analytics)
+    expected = audit["silver_rows"]
+    if (
+        analytics.get("schema_version") != 1
+        or analytics.get("source_records") != expected
+        or sum(row[3] for row in analytics["facts"]) != expected
+        or sum(row[1] for row in analytics["daily"]) != expected
+    ):
+        raise ValueError("public analytics do not reconcile with the audited full dataset")
     model = (workspace / "artifacts/full-model.joblib").read_bytes()
     digest = hashlib.sha256(model).hexdigest()
     if digest[:16] != state["result"]["model"]["model_version"]:
@@ -56,13 +88,20 @@ def prepare(workspace: Path, destination: Path):
     write("assets/full-model.joblib.gz", gzip.compress(model, compresslevel=9, mtime=0))
     write("assets/progress.json", json.dumps(progress, indent=2).encode())
     write("assets/verification.json", json.dumps(audit, indent=2).encode())
+    write("assets/analytics.json.gz", analytics_bytes)
+    write(
+        "assets/project.json",
+        json.dumps(
+            project_overview(workspace, captured_at=captured, mode="hosted_app"), indent=2
+        ).encode(),
+    )
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=workspace, text=True).strip()
     manifest = {
         "captured_at": captured,
         "source_commit": commit,
         "model_sha256": digest,
         "model_version": digest[:16],
-        "scope": "hosted inference and a captured verified local run",
+        "scope": "hosted analytics application, model inference, and verified project evidence",
         "local_only": ["raw requests", "Kafka", "Spark/Delta", "Airflow", "MLflow"],
         "files": files.copy(),
         "payload_bytes_excluding_manifest": sum(item["bytes"] for item in files.values()),

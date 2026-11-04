@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, ConfigDict
 
+from urbanlake.analytics import router as analytics_router
 from urbanlake.ml import predict
 
 log = logging.getLogger("urbanlake.api")
@@ -71,7 +72,26 @@ async def lifespan(application):
         application.state.cache.close()
 
 
-app = FastAPI(title="UrbanLake Demand API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="UrbanLake Service Analytics API", version="1.1.0", lifespan=lifespan)
+app.include_router(analytics_router)
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def project_app():
+    return HTMLResponse(
+        (Path(__file__).parent / "static/app.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/v1/project", tags=["Project"])
+def project_evidence():
+    from urbanlake.project_summary import overview
+
+    try:
+        return JSONResponse(overview(), headers={"Cache-Control": "no-store"})
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise HTTPException(503, "verified project evidence is temporarily unavailable") from error
 
 
 @app.get("/progress", response_class=HTMLResponse, include_in_schema=False)

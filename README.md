@@ -7,8 +7,10 @@ Airflow, and operational metrics on a Windows development machine.
 
 **Hosted demo:** [Open UrbanLake](https://urbanlake-three.vercel.app) ·
 [Public API docs](https://urbanlake-three.vercel.app/docs).
-The free hosted release runs real model inference and displays a captured audit
-of the completed local run. The full dataset and data-engineering services stay
+The free hosted app includes an analytics overview, interactive service explorer,
+real model forecasts, data-quality results and architecture details. Its filters
+query aggregate results covering the complete dataset, with matching CSV exports.
+The full raw dataset and data-engineering services stay
 on the laptop. See [deployment scope and verification](docs/DEPLOYMENT.md).
 
 **Verified local portfolio implementation; not production certified.** The full

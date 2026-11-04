@@ -52,10 +52,36 @@ def workspace(tmp_path, packer):
         artifacts / "full-verification.json",
         {
             "status": "passed",
+            "source_months": 1,
+            "archived_observations": 3,
             "bronze_rows": 3,
+            "distinct_observation_ids": 3,
+            "distinct_source_keys": 3,
             "silver_rows": 3,
+            "silver_distinct_source_keys": 3,
+            "gold_demand_requests": 3,
+            "gold_analytics_requests": 3,
+            "invalid_requests": 0,
+            "source_reference_count_matches": True,
             "source_reference_count": 3,
         },
+    )
+    public_analytics = {
+        "schema_version": 1,
+        "captured_at": "2026-01-01T01:00:00+00:00",
+        "source_start": "2020-01-01",
+        "source_end": "2020-01-01",
+        "source_records": 3,
+        "excluded_latest_source_day": "2020-01-01",
+        "months": ["2020-01"],
+        "boroughs": ["BRONX"],
+        "categories": ["Noise"],
+        "facts": [[0, 0, 0, 3, 1, 0, 0, 0]],
+        "daily": [["2020-01-01", 3]],
+        "semantics": "Verified aggregate snapshot; raw records remain local.",
+    }
+    (artifacts / "public-analytics.json.gz").write_bytes(
+        gzip.compress(json.dumps(public_analytics).encode(), mtime=0)
     )
     write_json(
         artifacts / "full-source-probe.json",
@@ -102,6 +128,8 @@ def test_release_is_allowlisted_and_captures_completed_normalized_progress(works
         "assets/full-model.joblib.gz",
         "assets/progress.json",
         "assets/verification.json",
+        "assets/analytics.json.gz",
+        "assets/project.json",
         "assets/release.json",
     }
     actual = {
@@ -124,6 +152,9 @@ def test_release_is_allowlisted_and_captures_completed_normalized_progress(works
     assert progress["completed_months"] == progress["total_months"] == 1
     assert progress["elapsed_seconds"] == 3600  # Frozen at completion, not packager runtime.
     assert progress["captured_at"] == result["captured_at"]
+    project = json.loads((destination / "assets/project.json").read_text())
+    assert project["mode"] == "hosted_app" and project["audit"]["silver_rows"] == 3
+    assert project["captured_at"] == result["captured_at"]
     manifest = json.loads((destination / "assets/release.json").read_text())
     assert "assets/release.json" not in manifest["files"]  # No circular self-hash.
     assert manifest["payload_bytes_excluding_manifest"] == sum(
@@ -186,3 +217,16 @@ def test_existing_destination_is_not_reused_or_overwritten(workspace, packer):
         packer.prepare(workspace, destination)
     assert marker.read_text() == "preserve this existing directory"
     assert list(destination.iterdir()) == [marker]
+
+
+@pytest.mark.parametrize("change", ["bad_total", "private_field"])
+def test_release_refuses_bad_or_unreviewed_analytics(workspace, packer, change):
+    path = workspace / "artifacts/public-analytics.json.gz"
+    data = json.loads(gzip.decompress(path.read_bytes()))
+    if change == "bad_total":
+        data["facts"][0][3] = 2
+    else:
+        data["raw_requests"] = [{"address": "DO_NOT_UPLOAD_RAW_ADDRESS"}]
+    path.write_bytes(gzip.compress(json.dumps(data).encode(), mtime=0))
+    with pytest.raises(ValueError):
+        packer.prepare(workspace, workspace / "artifacts/rejected-analytics")
