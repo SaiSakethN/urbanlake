@@ -21,6 +21,13 @@ The application opens at an analytics overview, with five functional views:
 - **Architecture:** the implemented pipeline, technologies and hosting boundaries.
 
 Progress is a secondary page at `/progress`; the root URL serves the project app.
+The complete application was deployed as
+`LOCAL_PLATFORM_ID` from source commit
+`LOCAL_REVISION`. Unauthenticated public application
+checks passed at **10:01:48 EST on November 4, 2026**, including the root app,
+metadata, total and filtered analytics, category selection, CSV export, project
+evidence, model identity and actual prediction. The Queens/2026 query returned
+830,304 requests and its 11 monthly CSV rows summed to the same count.
 Analytics use all **23,008,706 requests**, represented by **62,061 aggregate facts**
 across **83 months, 7 borough labels and 276 complaint categories**. A Gold-only
 Spark export reconciles both fact totals and daily totals against the full audit.
@@ -88,6 +95,13 @@ forecast. It cannot forecast the current day from stale data.
 The app additionally requires `/v1/analytics/metadata`, filtered `/v1/analytics`,
 `/v1/analytics/export` and `/v1/project`. These are read-only queries over the
 validated aggregate artifact; the browser never submits SQL or starts cloud jobs.
+Reproduce the complete app's public checks with:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify_public_app.py
+```
+
+The result is recorded in `artifacts/public-application-verification.json`.
 
 The published release passed these unauthenticated HTTP checks. Its model version
 is `LOCAL_MODEL_VERSION`; the historical November 1 prediction was **10,922.37** with
