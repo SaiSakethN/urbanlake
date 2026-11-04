@@ -137,6 +137,15 @@ def model_info(request: Request):
         "schema_version": 1,
         "model_version": request.app.state.version,
         "model_type": bundle["selected_model"],
+        "mlflow_run_id": bundle.get("run_id"),
+        "training_data_sha256": bundle.get("dataset_sha256"),
+        "evaluation": {
+            "test_days": bundle.get("metrics", {}).get("test_rows"),
+            "mean_absolute_error_requests": bundle.get("metrics", {}).get("test_selected_mae"),
+            "seasonal_baseline_mean_absolute_error_requests": bundle.get("metrics", {}).get(
+                "test_seasonal_naive_mae"
+            ),
+        },
         **model_metadata(bundle),
     }
 

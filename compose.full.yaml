@@ -3,6 +3,9 @@ services:
   api:
     environment:
       MODEL_PATH: /app/artifacts/full-model.joblib
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:ro
   pipeline-exporter:
     environment:
       PIPELINE_METRICS_PATH: /app/artifacts/full-pipeline-metrics.json
