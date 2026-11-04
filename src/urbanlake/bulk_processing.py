@@ -161,7 +161,11 @@ def bronze_batch(frame, batch_id, lake):
             == F.sha2(F.concat_ws(":", "p.run_id", "p.kind", "p.source_key", "p.fingerprint"), 256)
         )
     )
-    parsed = parsed.withColumn("valid", F.coalesce(valid, F.lit(False)))
+    # Quarantine and valid-row writes share decoding/fingerprint work. Persisting
+    # this branch point also avoids fetching the same fixed Kafka offsets twice.
+    parsed = parsed.withColumn("valid", F.coalesce(valid, F.lit(False))).persist(
+        StorageLevel.MEMORY_AND_DISK
+    )
     invalid = parsed.filter("NOT valid").select(
         F.sha2("value", 256).alias("observation_id"), "value"
     )
@@ -205,6 +209,7 @@ def bronze_batch(frame, batch_id, lake):
             raise ValueError(f"{rejected} invalid observations quarantined; batch must be repaired")
     finally:
         observations.unpersist()
+        parsed.unpersist()
 
 
 def normalize(latest):

@@ -74,7 +74,9 @@ def verify_serving():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--status", action="store_true", help="read live progress without starting work")
+    parser.add_argument(
+        "--status", action="store_true", help="read live progress without starting work"
+    )
     parser.add_argument(
         "--skip-pipeline", action="store_true", help="resume after global audit only"
     )
