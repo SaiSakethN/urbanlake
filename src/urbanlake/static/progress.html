@@ -32,7 +32,8 @@
       -webkit-font-smoothing: antialiased;
     }
     button { font: inherit; }
-    button:focus-visible { outline: 3px solid var(--teal); outline-offset: 4px; }
+    button:focus-visible, a:focus-visible { outline: 3px solid var(--teal); outline-offset: 4px; }
+    a { color: var(--teal); text-underline-offset: 3px; }
     .shell { width: min(1120px, calc(100% - 64px)); margin: 0 auto; }
     header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 32px 0; }
     .brand { display: flex; align-items: center; gap: 12px; }
@@ -54,6 +55,9 @@
     .manual { color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; font-size: 11px; white-space: nowrap; }
     .notice { margin-bottom: 18px; border: 1px solid #765d34; border-radius: 10px; background: #f4c3750a; padding: 13px 16px; color: #f8d9aa; overflow-wrap: anywhere; }
     .notice.failure { border-color: #78454a; background: #ff9a9a0a; color: #ffbcbc; }
+    .snapshot-banner { border: 1px solid #60e4c34b; border-radius: 10px; background: #60e4c30a; padding: 17px 20px; margin-bottom: 18px; }
+    .snapshot-banner strong { color: #9aefd8; font-size: 13px; font-weight: 600; }
+    .snapshot-banner p { color: #bfd3e4; margin: 5px 0 0; font-size: 12px; line-height: 1.7; }
     [hidden] { display: none !important; }
     .panel { background: linear-gradient(135deg, #14253766, #101e2e00), var(--panel); border: 1px solid var(--line); border-radius: 14px; }
     .hero { padding: 28px 30px 0; overflow: hidden; }
@@ -91,6 +95,24 @@
     .records-total { color: var(--muted); font-size: 11px; margin-bottom: 17px; }
     .data-card.blue .fill { background: var(--blue); }
     .data-card .small-note { margin-bottom: 0; }
+    .model-card { padding: 24px; margin-bottom: 18px; }
+    .model-card .block-heading { margin-bottom: 8px; }
+    .model-card .block-heading a { font-size: 11px; white-space: nowrap; }
+    .model-description { color: var(--muted); font-size: 12px; margin: 0 0 20px; max-width: 760px; }
+    .model-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 21px; }
+    .model-metric-label { color: var(--muted); font-size: 10px; margin-bottom: 5px; }
+    .model-metric-value { font-size: 18px; font-weight: 550; letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
+    .model-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 18px; border-top: 1px solid var(--line); }
+    .forecast-button { border: 1px solid #60e4c35c; border-radius: 7px; color: #b3f6e3; background: #60e4c314; padding: 9px 14px; cursor: pointer; font-size: 12px; font-weight: 550; }
+    .forecast-button:hover { background: #60e4c323; }
+    .forecast-button:disabled { opacity: .5; cursor: wait; }
+    .model-state { color: var(--muted); font-size: 11px; margin: 0; overflow-wrap: anywhere; }
+    .model-state.error { color: var(--red); }
+    .forecast-result { margin-top: 18px; padding: 16px 18px; border: 1px solid #39536d; border-radius: 8px; background: var(--panel-deep); }
+    .forecast-target { color: #b8cce0; font-size: 11px; }
+    .forecast-value { font-size: 28px; font-weight: 550; letter-spacing: -.7px; color: var(--blue); margin: 3px 0; font-variant-numeric: tabular-nums; }
+    .forecast-value small { color: var(--muted); font-size: 12px; font-weight: 400; letter-spacing: 0; }
+    .forecast-model { color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
     .flow { padding: 22px 24px; margin-bottom: 18px; }
     .block-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 22px; }
     .block-heading h2 { font-size: 14px; font-weight: 550; letter-spacing: -.1px; margin: 0; }
@@ -133,6 +155,7 @@
     footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; color: #8da3b9; font-size: 10px; padding: 20px 0 30px; }
     .footer-left { display: flex; align-items: center; gap: 7px; }
     .footer-left svg { width: 12px; height: 12px; }
+    .footer-right { display: flex; gap: 18px; align-items: center; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     @media (max-width: 800px) {
       .shell { width: calc(100% - 40px); }
@@ -180,6 +203,13 @@
       .records { font-size: clamp(18px, 4.7vw, 21px); letter-spacing: -.7px; margin-top: 12px; }
       .records-total { font-size: 9px; }
       .data-card .small-note { font-size: 9px; min-height: 27px; }
+      .snapshot-banner { padding: 15px 17px; }
+      .snapshot-banner p { font-size: 11px; }
+      .model-card { padding: 20px; margin-bottom: 12px; }
+      .model-metrics { grid-template-columns: 1fr 1fr; gap: 17px; }
+      .model-metric-value { font-size: 16px; }
+      .model-description { font-size: 11px; }
+      .model-actions { gap: 11px; }
       .flow { padding: 20px; margin-bottom: 12px; }
       .flow .block-heading { margin-bottom: 17px; }
       .flow .block-heading p { display: none; }
@@ -198,6 +228,7 @@
       .calendar-note { margin-left: 41px; font-size: 9px; }
       footer { flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px 0 25px; }
     }
+    @media (max-width: 380px) { .brand-sub { display: none; } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
   </style>
 </head>
@@ -217,13 +248,17 @@
     <main>
       <div class="intro">
         <div>
-          <p class="eyebrow">Historical backfill</p>
-          <h1>Your lakehouse, coming to life.</h1>
-          <p class="subtitle">NYC 311 data → verified lakehouse → trained demand model.</p>
+          <p id="page-eyebrow" class="eyebrow">Historical backfill</p>
+          <h1 id="page-heading">Your lakehouse, coming to life.</h1>
+          <p id="page-subtitle" class="subtitle">NYC 311 data → verified lakehouse → trained demand model.</p>
         </div>
-        <span class="manual">Manual run</span>
+        <span id="run-kind" class="manual">Manual run</span>
       </div>
 
+      <aside id="snapshot-banner" class="snapshot-banner" aria-label="Hosted snapshot scope" hidden>
+        <strong>Verified historical local run</strong>
+        <p id="snapshot-description"></p>
+      </aside>
       <div id="notice" class="notice" role="alert" hidden></div>
       <section class="panel hero" aria-labelledby="overall-heading">
         <div class="hero-top">
@@ -237,7 +272,7 @@
             <p class="small-note">Includes downloading, processing, verification, training, and serving.</p>
           </div>
           <div class="now" aria-labelledby="current-heading">
-            <div id="current-heading" class="now-top"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Current work</div>
+            <div id="current-heading" class="now-top"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="current-caption">Current work</span></div>
             <div id="current-month" class="current-month">Connecting…</div>
             <div id="current-stage" class="current-stage">Reading actual job state</div>
           </div>
@@ -255,16 +290,36 @@
           <div id="download-records" class="records">—</div>
           <div class="records-total">of <span data-total-records>—</span> source records</div>
           <div id="download-bar" class="track" role="progressbar" aria-label="Source records downloaded" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Waiting for first snapshot"><div id="download-fill" class="fill"></div></div>
-          <p class="small-note">Source pages safely saved on this laptop.</p>
+          <p id="download-note" class="small-note">Source pages safely saved on this laptop.</p>
         </section>
         <section class="panel data-card blue" aria-labelledby="process-heading">
           <div class="card-heading"><h2 id="process-heading">In finalized lakehouse</h2><span id="process-percent" class="card-percent">—</span></div>
           <div id="process-records" class="records">—</div>
           <div class="records-total">of <span data-total-records>—</span> source records</div>
           <div id="process-bar" class="track" role="progressbar" aria-label="Source records in finalized lakehouse partitions" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Waiting for first snapshot"><div id="process-fill" class="fill"></div></div>
-          <p class="small-note">Updates when each month's processing finishes.</p>
+          <p id="process-note" class="small-note">Updates when each month's processing finishes.</p>
         </section>
       </div>
+
+      <section id="hosted-model" class="panel model-card" aria-labelledby="model-heading" hidden>
+        <div class="block-heading"><h2 id="model-heading">Try the hosted model</h2><a href="/docs">API documentation</a></div>
+        <p class="model-description">Run a historical next-day forecast using the model's supported date below. Current-day forecasting is unavailable; the source history stops at the displayed training date.</p>
+        <div class="model-metrics">
+          <div><div class="model-metric-label">Held-out test days</div><div id="model-test-days" class="model-metric-value">—</div></div>
+          <div><div class="model-metric-label">Test MAE · requests/day</div><div id="model-mae" class="model-metric-value">—</div></div>
+          <div><div class="model-metric-label">Training through</div><div id="model-as-of" class="model-metric-value">—</div></div>
+          <div><div class="model-metric-label">Supported historical target</div><div id="model-target" class="model-metric-value">—</div></div>
+        </div>
+        <div class="model-actions">
+          <button id="forecast" class="forecast-button" type="button" disabled>Run historical forecast</button>
+          <p id="model-state" class="model-state" role="status" aria-live="polite">Loading hosted model metadata…</p>
+        </div>
+        <div id="forecast-result" class="forecast-result" role="status" aria-live="polite" hidden>
+          <div id="forecast-target" class="forecast-target"></div>
+          <div class="forecast-value"><span id="forecast-value"></span> <small>predicted requests</small></div>
+          <div id="forecast-model" class="forecast-model"></div>
+        </div>
+      </section>
 
       <section class="panel flow" aria-labelledby="flow-heading">
         <div class="block-heading"><h2 id="flow-heading">From source to serving</h2><p>Every stage is verified before completion.</p></div>
@@ -283,8 +338,8 @@
     </main>
 
     <footer>
-      <span class="footer-left"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="3" width="12" height="9" rx="1.5" stroke="currentColor"/><path d="M5 14h6M8 12v2" stroke="currentColor"/></svg>Live from this laptop · Refreshes every 2 seconds</span>
-      <span id="last-checked">Waiting for first update</span>
+      <span class="footer-left"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="3" width="12" height="9" rx="1.5" stroke="currentColor"/><path d="M5 14h6M8 12v2" stroke="currentColor"/></svg><span id="footer-mode">Live from this laptop · Refreshes every 2 seconds</span></span>
+      <div class="footer-right"><a href="/docs">API docs</a><span id="last-checked">Waiting for first update</span></div>
     </footer>
   </div>
 
@@ -317,6 +372,111 @@
     let inFlight = false;
     let monthSignature = "";
     let lastAnnouncement = "";
+    let hostedModel = null;
+    let forecastInFlight = false;
+
+    function isHostedSnapshot(data = snapshot) {
+      return data?.mode === "verified_snapshot";
+    }
+
+    function decimal(value, digits = 1) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return "—";
+      return new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(Number(value));
+    }
+
+    function dateLabel(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return "Unavailable";
+      const stamp = new Date(`${value}T12:00:00Z`);
+      return Number.isNaN(stamp.getTime()) ? "Unavailable" : stamp.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+    }
+
+    function renderMode(data) {
+      const hosted = isHostedSnapshot(data);
+      $("snapshot-banner").hidden = !hosted;
+      $("hosted-model").hidden = !hosted;
+      $("page-eyebrow").textContent = hosted ? "Verified project snapshot" : "Historical backfill";
+      $("page-heading").textContent = hosted ? "Verified from source to serving." : "Your lakehouse, coming to life.";
+      $("page-subtitle").textContent = hosted ? "Historical pipeline evidence and a working hosted demand model." : "NYC 311 data → verified lakehouse → trained demand model.";
+      $("run-kind").textContent = hosted ? "Hosted inference" : "Manual run";
+      $("overall-heading").textContent = hosted ? "Verified local run completion" : "Overall estimate";
+      $("current-caption").textContent = hosted ? "Current view" : "Current work";
+      $("download-note").textContent = hosted ? "Downloaded locally; raw records remain on the laptop." : "Source pages safely saved on this laptop.";
+      $("process-note").textContent = hosted ? "Finalized locally; counts are from the verified run." : "Updates when each month's processing finishes.";
+      $("footer-mode").textContent = hosted ? "Verified local-run snapshot · Refresh manually" : "Live from this laptop · Refreshes every 2 seconds";
+      if (hosted) {
+        const captured = typeof data.captured_at === "string" && data.captured_at ? new Date(data.captured_at) : null;
+        const captureLabel = captured && !Number.isNaN(captured.getTime())
+          ? `Captured ${captured.toLocaleString(undefined, { dateStyle: "long", timeStyle: "long" })}.`
+          : "The capture date was not provided.";
+        $("snapshot-description").textContent = `${captureLabel} Model inference is hosted on this site. The raw dataset, Kafka, Spark, and Airflow remain on the local laptop. This is a fixed snapshot of a verified historical run, not live pipeline activity.`;
+      }
+    }
+
+    async function requestJSON(path, options = {}) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      try {
+        const response = await fetch(path, { ...options, cache: "no-store", signal: controller.signal, headers: { Accept: "application/json", ...(options.headers || {}) } });
+        let body;
+        try { body = await response.json(); } catch { throw new Error("The service returned an unreadable response."); }
+        if (!response.ok) throw new Error(typeof body?.error?.message === "string" ? body.error.message : `The service returned HTTP ${response.status}.`);
+        return body;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    async function loadHostedModel() {
+      $("forecast").disabled = true;
+      $("model-state").className = "model-state";
+      $("model-state").textContent = "Loading hosted model metadata…";
+      try {
+        const model = await requestJSON("/v1/model");
+        if (!model || !/^\d{4}-\d{2}-\d{2}$/.test(model.supported_target_date || "") || typeof model.model_version !== "string") throw new Error("Model metadata is incomplete.");
+        if (hostedModel?.model_version !== model.model_version) $("forecast-result").hidden = true;
+        hostedModel = model;
+        $("model-test-days").textContent = model.evaluation?.test_days === null || model.evaluation?.test_days === undefined ? "—" : count(model.evaluation.test_days);
+        $("model-mae").textContent = decimal(model.evaluation?.mean_absolute_error_requests);
+        $("model-as-of").textContent = dateLabel(model.as_of_date);
+        $("model-target").textContent = dateLabel(model.supported_target_date);
+        $("model-state").textContent = `${String(model.model_type || "Model").replaceAll("_", " ")} · version ${model.model_version}`;
+        $("forecast").disabled = forecastInFlight;
+      } catch (error) {
+        hostedModel = null;
+        $("model-state").className = "model-state error";
+        $("model-state").textContent = `Hosted model unavailable. ${error instanceof Error && error.name !== "AbortError" ? error.message : "The request timed out."} Use Refresh to retry.`;
+      }
+    }
+
+    async function runForecast() {
+      if (!hostedModel || forecastInFlight) return;
+      forecastInFlight = true;
+      $("forecast").disabled = true;
+      $("forecast").textContent = "Running forecast…";
+      $("forecast-result").hidden = true;
+      $("model-state").className = "model-state";
+      $("model-state").textContent = `Requesting the supported historical date, ${dateLabel(hostedModel.supported_target_date)}…`;
+      try {
+        const result = await requestJSON("/v1/predictions/demand", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ schema_version: 1, target_date: hostedModel.supported_target_date })
+        });
+        if (!Number.isFinite(result?.predicted_requests) || typeof result.model_version !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(result.target_date || "")) throw new Error("The forecast response is incomplete.");
+        $("forecast-target").textContent = `Historical forecast · ${dateLabel(result.target_date)}`;
+        $("forecast-value").textContent = decimal(result.predicted_requests, 2);
+        $("forecast-model").textContent = `Model ${result.model_version} · Training through ${dateLabel(result.as_of_date)} · Model output, not an observed count`;
+        $("forecast-result").hidden = false;
+        $("model-state").textContent = "Historical forecast returned by the hosted prediction API.";
+      } catch (error) {
+        $("model-state").className = "model-state error";
+        $("model-state").textContent = `Forecast unavailable. ${error instanceof Error && error.name !== "AbortError" ? error.message : "The request timed out."} You can try again.`;
+      } finally {
+        forecastInFlight = false;
+        $("forecast").disabled = !hostedModel;
+        $("forecast").textContent = "Run historical forecast";
+      }
+    }
 
     function count(value) {
       return Number.isFinite(Number(value)) ? numberFormat.format(Number(value)) : "—";
@@ -438,6 +598,7 @@
     }
 
     function render(data) {
+      renderMode(data);
       const overall = setBar("overall", data.overall_percent);
       const downloaded = setBar("download", data.download_percent);
       const processed = setBar("process", data.processing_percent);
@@ -454,8 +615,8 @@
       $("elapsed").textContent = duration(data.elapsed_seconds);
       $("remaining").textContent = data.status === "complete" ? "Complete" : data.status === "failed" ? "On hold" : duration(data.estimated_remaining_seconds, true);
       const stage = data.current_stage || data.phase;
-      $("current-month").textContent = data.status === "complete" ? "Project complete" : data.phase === "training" ? "Full dataset model" : data.phase === "serving" ? "Prediction service" : stage === "verify-full" ? "Full dataset audit" : monthLabel(data.current_month);
-      $("current-stage").textContent = data.status === "complete" ? "All required checks passed" : data.status === "failed" ? "Run needs attention" : stageNames[stage] || (data.status === "not_started" ? "Waiting for the run to start" : "Reading pipeline state");
+      $("current-month").textContent = isHostedSnapshot(data) ? "Verified local run" : data.status === "complete" ? "Project complete" : data.phase === "training" ? "Full dataset model" : data.phase === "serving" ? "Prediction service" : stage === "verify-full" ? "Full dataset audit" : monthLabel(data.current_month);
+      $("current-stage").textContent = isHostedSnapshot(data) ? "Fixed historical completion snapshot" : data.status === "complete" ? "All required checks passed" : data.status === "failed" ? "Run needs attention" : stageNames[stage] || (data.status === "not_started" ? "Waiting for the run to start" : "Reading pipeline state");
       const statusLabels = { running: "In progress", failed: "Needs attention", complete: "Complete", not_started: "Not started" };
       $("status").textContent = statusLabels[data.status] || "Updating";
       $("status").className = `status-chip${data.status === "failed" ? " failed" : data.status === "not_started" ? " waiting" : ""}`;
@@ -466,7 +627,7 @@
       notice.className = `notice${data.status === "failed" ? " failure" : ""}`;
       notice.textContent = data.error ? String(data.error) : data.status === "failed" ? "The run stopped before completion. The progress below shows the last recorded job state." : "";
       $("connection").className = `live${data.status === "failed" ? " failed" : ""}`;
-      $("connection").textContent = data.status === "complete" ? "Complete" : data.status === "failed" ? "Run stopped" : "Live updates";
+      $("connection").textContent = isHostedSnapshot(data) ? "Verified snapshot" : data.status === "complete" ? "Complete" : data.status === "failed" ? "Run stopped" : "Live updates";
       const checkDate = new Date();
       $("last-checked").textContent = `Last checked ${checkDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
       const snapshotDate = new Date(data.snapshot_at || data.updated_at || "");
@@ -476,7 +637,7 @@
         $("announcement").textContent = announcement;
         lastAnnouncement = announcement;
       }
-      document.title = `${percentFormat.format(overall)}% · UrbanLake progress`;
+      document.title = isHostedSnapshot(data) ? "UrbanLake · Verified run & hosted model" : `${percentFormat.format(overall)}% · UrbanLake progress`;
     }
 
     async function poll() {
@@ -493,26 +654,30 @@
         if (!data || !["running", "failed", "complete", "not_started"].includes(data.status)) throw new Error("Progress service returned an unexpected response");
         render(data);
         snapshot = data;
+        if (isHostedSnapshot(data)) await loadHostedModel();
       } catch (error) {
         $("connection").className = "live reconnecting";
-        $("connection").textContent = "Reconnecting";
+        $("connection").textContent = isHostedSnapshot() ? "Verified snapshot" : "Reconnecting";
         $("notice").hidden = false;
         $("notice").className = "notice";
-        $("notice").textContent = snapshot
+        $("notice").textContent = isHostedSnapshot()
+          ? "The snapshot could not be refreshed. The last received historical snapshot is shown below. Use Refresh to try again."
+          : snapshot
           ? "The live connection is temporarily unavailable. Your last verified progress is shown below; this page will reconnect automatically."
-          : "Connecting to the local progress service. This page will retry automatically; keep Docker and the project services running.";
+          : "Connecting to the progress service. This page will retry automatically.";
         $("notice").title = error instanceof Error ? error.message : "Connection unavailable";
       } finally {
         clearTimeout(timeout);
         $("refresh").disabled = false;
         inFlight = false;
-        timer = setTimeout(poll, document.hidden ? 10000 : snapshot?.status === "complete" ? 15000 : 2000);
+        if (!isHostedSnapshot()) timer = setTimeout(poll, document.hidden ? 10000 : snapshot?.status === "complete" ? 15000 : 2000);
       }
     }
 
     $("refresh").addEventListener("click", poll);
+    $("forecast").addEventListener("click", runForecast);
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) { clearTimeout(timer); poll(); }
+      if (!document.hidden && !isHostedSnapshot()) { clearTimeout(timer); poll(); }
     });
     renderPhases([]);
     poll();

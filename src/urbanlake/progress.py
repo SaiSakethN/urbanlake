@@ -1,6 +1,8 @@
 """Read-only progress snapshots from durable job state, never simulated growth."""
 
 import json
+import os
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -15,7 +17,70 @@ def percentage(count, total):
     return round(min(100.0, max(0.0, count / total * 100)), 2) if total else 0.0
 
 
+def verified_snapshot(path: Path):
+    """A hosted report is frozen evidence, not a live remote lakehouse connection."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("verified snapshot must be a JSON object")
+    if data.get("status") != "complete" or data.get("phase") != "complete" or data.get("error"):
+        raise ValueError("hosted progress requires a completed verified run")
+    for name in ("download_percent", "processing_percent", "overall_percent"):
+        if data.get(name) != 100:
+            raise ValueError("hosted progress requires completed percentages")
+    counts = [
+        data.get(name) for name in ("total_records", "downloaded_records", "processed_records")
+    ]
+    if any(type(value) is not int or value <= 0 for value in counts) or len(set(counts)) != 1:
+        raise ValueError("hosted progress source and processed counts do not agree")
+    months = data.get("months")
+    if not isinstance(months, list) or not months or any(not isinstance(m, dict) for m in months):
+        raise ValueError("hosted progress requires completed source months")
+    labels = [month.get("month") for month in months]
+    if any(
+        not isinstance(label, str) or not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", label)
+        for label in labels
+    ) or len(labels) != len(set(labels)):
+        raise ValueError("hosted source months must be valid and unique")
+    if data.get("completed_months") != len(months) or data.get("total_months") != len(months):
+        raise ValueError("hosted progress month coverage is incomplete")
+    if any(
+        month.get("state") != "done"
+        or type(month.get("records")) is not int
+        or month["records"] < 0
+        for month in months
+    ):
+        raise ValueError("hosted progress contains an incomplete source month")
+    if sum(month["records"] for month in months) != counts[0]:
+        raise ValueError("hosted source-month totals do not match the verified record count")
+    phases = data.get("phases")
+    required = {"download", "process", "verify", "train", "serve"}
+    if (
+        not isinstance(phases, list)
+        or len(phases) != len(required)
+        or any(
+            not isinstance(phase, dict)
+            or not isinstance(phase.get("key"), str)
+            or phase.get("state") != "done"
+            or phase.get("percent") != 100
+            for phase in phases
+        )
+        or {phase.get("key") for phase in phases} != required
+    ):
+        raise ValueError("hosted progress requires all verification/training/serving phases")
+    captured = data.get("captured_at", data.get("snapshot_at"))
+    for value in (data.get("snapshot_at"), captured):
+        if not isinstance(value, str) or datetime.fromisoformat(value).tzinfo is None:
+            raise ValueError("hosted progress requires aware capture timestamps")
+    return {**data, "mode": "verified_snapshot", "captured_at": captured}
+
+
 def snapshot(workspace: Path = Path(".")):
+    configured = os.getenv("PROGRESS_SNAPSHOT_PATH")
+    if configured is not None:
+        if not configured.strip():
+            raise ValueError("configured progress snapshot path is empty")
+        path = Path(configured)
+        return verified_snapshot(path if path.is_absolute() else workspace / path)
     root = workspace / "data/full/backfill"
     plan = read(root / "plan.json", {})
     pipeline = read(root / "pipeline.json", {})
@@ -84,7 +149,11 @@ def snapshot(workspace: Path = Path(".")):
         phases.append({"key": key, "label": label, "state": state, "percent": percent})
     now = datetime.now(UTC)
     started = pipeline.get("started_at", project.get("started_at"))
-    elapsed = max(0, (now - datetime.fromisoformat(started)).total_seconds()) if started else 0
+    finished = project.get("finished_at", pipeline.get("finished_at")) if serve_done else None
+    clock_end = datetime.fromisoformat(finished) if finished else now
+    elapsed = (
+        max(0, (clock_end - datetime.fromisoformat(started)).total_seconds()) if started else 0
+    )
     remaining = (elapsed / done * (len(months) - done)) if done and done < len(months) else None
     return {
         "status": status,

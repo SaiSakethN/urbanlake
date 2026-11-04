@@ -1,0 +1,13 @@
+[project]
+name = "urbanlake-public"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi==0.116.1", "pydantic==2.11.7", "uvicorn==0.35.0",
+  "redis==6.4.0", "prometheus-client==0.22.1", "joblib==1.5.1",
+  "pandas==2.3.1", "scikit-learn==1.7.1", "numpy==2.2.6",
+  "scipy==1.16.1", "tzdata==2025.2",
+]
+
+[tool.vercel]
+entrypoint = "app:app"

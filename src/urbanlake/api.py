@@ -55,14 +55,20 @@ async def lifespan(application):
             application.state.bundle = joblib.load(path)
         except Exception:
             log.exception("Model artifact could not be loaded")
-    application.state.cache = redis.Redis.from_url(
-        os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-        socket_connect_timeout=0.25,
-        socket_timeout=0.25,
-        decode_responses=True,
+    enabled = os.getenv("REDIS_ENABLED", "true").strip().lower() not in {"false", "0", "off", "no"}
+    application.state.cache = (
+        redis.Redis.from_url(
+            os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+            socket_connect_timeout=0.25,
+            socket_timeout=0.25,
+            decode_responses=True,
+        )
+        if enabled
+        else None
     )
     yield
-    application.state.cache.close()
+    if application.state.cache is not None:
+        application.state.cache.close()
 
 
 app = FastAPI(title="UrbanLake Demand API", version="1.0.0", lifespan=lifespan)
@@ -124,11 +130,14 @@ def health():
 def ready(request: Request):
     if request.app.state.bundle is None:
         raise HTTPException(503, "model unavailable; run training and restart the API")
-    try:
-        request.app.state.cache.ping()
-        cache = "up"
-    except redis.RedisError:
-        cache = "unavailable"
+    if request.app.state.cache is None:
+        cache = "disabled"
+    else:
+        try:
+            request.app.state.cache.ping()
+            cache = "up"
+        except redis.RedisError:
+            cache = "unavailable"
     return {
         "status": "ready",
         "model_version": request.app.state.version,
@@ -182,14 +191,18 @@ def forecast(payload: PredictionRequest, request: Request):
         raise HTTPException(503, "model unavailable; run training and restart the API")
     version = request.app.state.version
     key = f"urbanlake:demand:v1:{version}:{payload.target_date}"
-    try:
-        cached = request.app.state.cache.get(key)
-        if cached:
-            CACHE.labels("hit").inc()
-            return {**json.loads(cached), "cached": True}
-    except redis.RedisError:
-        CACHE.labels("error").inc()
-    CACHE.labels("miss").inc()
+    cache = request.app.state.cache
+    if cache is None:
+        CACHE.labels("disabled").inc()
+    else:
+        try:
+            cached = cache.get(key)
+            if cached:
+                CACHE.labels("hit").inc()
+                return {**json.loads(cached), "cached": True}
+        except redis.RedisError:
+            CACHE.labels("error").inc()
+        CACHE.labels("miss").inc()
     try:
         estimate = predict(bundle, payload.target_date)
     except ValueError as error:
@@ -203,8 +216,9 @@ def forecast(payload: PredictionRequest, request: Request):
         "as_of_date": bundle["as_of_date"],
         "cached": False,
     }
-    try:
-        request.app.state.cache.setex(key, 3600, json.dumps(response))
-    except redis.RedisError:
-        CACHE.labels("error").inc()
+    if cache is not None:
+        try:
+            cache.setex(key, 3600, json.dumps(response))
+        except redis.RedisError:
+            CACHE.labels("error").inc()
     return response

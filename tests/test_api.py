@@ -88,3 +88,31 @@ def test_cache_outage_does_not_prevent_forecast(monkeypatch, tmp_path):
             client.post("/v1/predictions/demand", json={"target_date": "2026-01-15"}).status_code
             == 200
         )
+
+
+def test_disabled_redis_never_constructs_or_connects_a_cache(monkeypatch, tmp_path):
+    file = tmp_path / "model.joblib"
+    joblib.dump(
+        {
+            "as_of_date": "2026-01-14",
+            "history": list(range(14)),
+            "selected_model": "seasonal_naive",
+        },
+        file,
+    )
+    monkeypatch.setenv("MODEL_PATH", str(file))
+    monkeypatch.setenv("REDIS_ENABLED", "false")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("disabled Redis must not construct a client")
+
+    monkeypatch.setattr(redis.Redis, "from_url", forbidden)
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200
+        ready = client.get("/ready")
+        assert ready.status_code == 200 and ready.json()["cache"] == "disabled"
+        for _ in range(2):
+            forecast = client.post("/v1/predictions/demand", json={"target_date": "2026-01-15"})
+            assert forecast.status_code == 200
+            assert forecast.json()["predicted_requests"] == 7
+            assert forecast.json()["cached"] is False
