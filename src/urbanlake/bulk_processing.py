@@ -141,8 +141,8 @@ def bronze_batch(frame, batch_id, lake):
     from pyspark import StorageLevel
     from pyspark.sql import functions as F
 
-    if frame.isEmpty():
-        return
+    # The parsed branch below handles an empty frame without writing tables.
+    # Avoid an extra Kafka action just to check emptiness before materialization.
     parsed = frame.select(F.col("value").cast("string").alias("value")).withColumn(
         "p", F.from_json("value", envelope_schema())
     )
