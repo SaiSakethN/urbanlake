@@ -1,0 +1,7 @@
+# Show live progress with the current source while the historical run continues.
+services:
+  api:
+    environment:
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:ro

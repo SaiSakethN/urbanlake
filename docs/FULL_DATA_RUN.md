@@ -76,6 +76,22 @@ not proof that all row contents came from the exact same source instant.
 .\.venv\Scripts\python.exe -m urbanlake.full_project --prefetch
 ```
 
+## Live progress page
+
+Open **http://localhost:8000/progress**. It polls `/v1/progress` every two seconds,
+shows actual downloaded/finalized record counts, per-month completion, current
+work, rough ETA, and the later audit/training/serving phases. Browser failures
+preserve the last actual snapshot rather than simulating movement. The overall
+estimate weights download 30%, lakehouse 60%, audit 4%, training 4%, serving 2%;
+only a verified complete project displays 100%.
+
+During development the existing API runs with `compose.progress.yaml` to read the
+current source. The full-model promotion uses `compose.full.yaml`, preserving the
+same page. HTTP checks verified successful page delivery, no-cache fresh snapshots,
+the 83-month plan, monotonic record counters, and honest completion gating. UI
+JavaScript syntax was checked; browser automation was unavailable, so visual
+browser QA was not claimed.
+
 `data/full/backfill/pipeline.json` and `pipeline-status.json` record pipeline stages,
 completion and timing. Per-month source state is under `partitions/YYYY-MM/state.json`;
 per-page Kafka state is `kafka.json`. Logs and all source/runtime artifacts are

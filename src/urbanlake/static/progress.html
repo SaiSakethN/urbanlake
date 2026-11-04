@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a1421">
+  <meta name="description" content="Live progress of the UrbanLake historical data backfill, lakehouse verification, and model training.">
+  <title>UrbanLake · Live progress</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a1421;
+      --panel: #101e2e;
+      --panel-deep: #0c1928;
+      --line: #24364a;
+      --text: #eef5fc;
+      --muted: #9bb0c6;
+      --teal: #60e4c3;
+      --blue: #80b9ff;
+      --amber: #f4c375;
+      --red: #ff9a9a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: radial-gradient(ellipse at 75% -10%, #153546 0, transparent 45%), var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; }
+    button:focus-visible { outline: 3px solid var(--teal); outline-offset: 4px; }
+    .shell { width: min(1120px, calc(100% - 64px)); margin: 0 auto; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 32px 0; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { width: 38px; height: 38px; color: var(--teal); }
+    .brand-name { font-size: 19px; font-weight: 650; letter-spacing: -.5px; }
+    .brand-sub { color: var(--muted); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; }
+    .header-tools { display: flex; align-items: center; gap: 18px; }
+    .live { display: inline-flex; align-items: center; gap: 8px; color: var(--teal); font-size: 12px; white-space: nowrap; }
+    .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px #60e4c310; }
+    .live.reconnecting { color: var(--amber); }
+    .live.failed { color: var(--red); }
+    .refresh { background: #ffffff05; border: 1px solid var(--line); color: #cfdeee; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: border-color .15s, background .15s; }
+    .refresh:hover { background: #ffffff09; border-color: #4a647f; }
+    .refresh:disabled { opacity: .55; cursor: wait; }
+    .intro { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin: 20px 0 25px; }
+    .eyebrow { color: var(--teal); font-size: 11px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; margin: 0 0 10px; }
+    h1 { font-size: clamp(29px, 4vw, 38px); line-height: 1.2; letter-spacing: -1.3px; font-weight: 600; margin: 0 0 10px; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 14px; }
+    .manual { color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; font-size: 11px; white-space: nowrap; }
+    .notice { margin-bottom: 18px; border: 1px solid #765d34; border-radius: 10px; background: #f4c3750a; padding: 13px 16px; color: #f8d9aa; overflow-wrap: anywhere; }
+    .notice.failure { border-color: #78454a; background: #ff9a9a0a; color: #ffbcbc; }
+    [hidden] { display: none !important; }
+    .panel { background: linear-gradient(135deg, #14253766, #101e2e00), var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+    .hero { padding: 28px 30px 0; overflow: hidden; }
+    .hero-top { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; }
+    .section-label { color: var(--muted); margin: 0; font-size: 12px; font-weight: 500; }
+    .percent-row { display: flex; align-items: center; gap: 20px; margin: 8px 0 17px; }
+    .overall-value { font-size: clamp(48px, 6vw, 68px); font-weight: 550; letter-spacing: -3.5px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .overall-value small { color: #9fb4c7; font-size: .45em; margin-left: 3px; letter-spacing: -1px; }
+    .status-chip { display: inline-flex; align-items: center; border: 1px solid #60e4c33d; border-radius: 6px; padding: 4px 9px; background: #60e4c30b; color: var(--teal); font-size: 11px; font-weight: 600; }
+    .status-chip.failed { color: var(--red); background: #ff9a9a0b; border-color: #ff9a9a3d; }
+    .status-chip.waiting { color: var(--muted); border-color: var(--line); background: transparent; }
+    .track { height: 9px; border-radius: 99px; background: #24364a; overflow: hidden; }
+    .track.overall { height: 11px; }
+    .fill { height: 100%; width: 0%; border-radius: inherit; background: var(--teal); transition: width .65s ease; }
+    .overall .fill { background: linear-gradient(90deg, #31ad9b, #73edd0); }
+    .small-note { color: #8fa5ba; font-size: 11px; margin: 10px 0 22px; }
+    .now { align-self: center; padding: 18px 20px; background: var(--panel-deep); border: 1px solid #263a4d; border-radius: 10px; }
+    .now-top { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; letter-spacing: 1.1px; text-transform: uppercase; }
+    .now-top svg { width: 13px; height: 13px; color: var(--teal); }
+    .current-month { font-size: 21px; font-weight: 550; letter-spacing: -.5px; margin: 8px 0 3px; }
+    .current-stage { color: var(--muted); font-size: 12px; }
+    .hero-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--line); margin-top: 7px; }
+    .stat { padding: 20px 0 21px; }
+    .stat + .stat { border-left: 1px solid var(--line); padding-left: 28px; }
+    .stat-value { font-size: 21px; font-weight: 550; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
+    .stat-value span { color: var(--muted); font-size: 13px; font-weight: 400; letter-spacing: 0; }
+    .stat-label { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0; }
+    .data-card { padding: 22px 24px; }
+    .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .card-heading h2 { margin: 0; font-size: 13px; font-weight: 550; }
+    .card-percent { color: var(--teal); font-variant-numeric: tabular-nums; font-size: 12px; }
+    .data-card.blue .card-percent { color: var(--blue); }
+    .records { font-size: 27px; font-weight: 550; letter-spacing: -.9px; margin: 12px 0 1px; font-variant-numeric: tabular-nums; }
+    .records-total { color: var(--muted); font-size: 11px; margin-bottom: 17px; }
+    .data-card.blue .fill { background: var(--blue); }
+    .data-card .small-note { margin-bottom: 0; }
+    .flow { padding: 22px 24px; margin-bottom: 18px; }
+    .block-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 22px; }
+    .block-heading h2 { font-size: 14px; font-weight: 550; letter-spacing: -.1px; margin: 0; }
+    .block-heading p { color: var(--muted); font-size: 11px; margin: 0; }
+    .phases { display: grid; grid-template-columns: repeat(5, 1fr); gap: 22px; }
+    .phase { position: relative; min-width: 0; }
+    .phase-top { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+    .phase-number { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 1px solid #3a4e63; border-radius: 50%; color: var(--muted); font-size: 10px; flex-shrink: 0; }
+    .phase-label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .phase-state { color: #94a9bd; font-size: 10px; margin-top: 6px; }
+    .phase .track { height: 3px; }
+    .phase .fill { background: #70879e; }
+    .phase.done .phase-number { color: var(--teal); background: #60e4c312; border-color: #60e4c355; }
+    .phase.done .phase-label, .phase.running .phase-label { color: var(--text); }
+    .phase.done .fill, .phase.running .fill { background: var(--teal); }
+    .phase.running .phase-number { color: var(--teal); border-color: var(--teal); }
+    .phase.running .phase-state { color: var(--teal); }
+    .phase.failed .phase-number, .phase.failed .phase-state { color: var(--red); border-color: #ff9a9a66; }
+    .phase.failed .fill { background: var(--red); }
+    .calendar { padding: 24px; }
+    .calendar .block-heading { margin-bottom: 21px; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 10px; }
+    .legend span { display: inline-flex; gap: 6px; align-items: center; }
+    .legend i { width: 8px; height: 8px; border-radius: 2px; border: 1px solid #3b4d61; background: #1a2b3d; }
+    .legend .done { background: #60e4c34a; border-color: #60e4c38a; }
+    .legend .active { background: #9bc9ff35; border-color: var(--blue); }
+    .legend .downloaded { background: #80b9ff12; border-color: #5a7d9f; }
+    .years { display: flex; flex-direction: column; gap: 9px; }
+    .year { display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 16px; }
+    .year-label { color: #b2c5d8; font-size: 11px; font-variant-numeric: tabular-nums; }
+    .months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 7px; }
+    .month { padding: 7px 2px; border: 1px solid #2b3e52; border-radius: 5px; background: #152537; color: #8da3b9; font-size: 11px; text-align: center; cursor: default; }
+    .month.done { background: #60e4c319; border-color: #60e4c34b; color: #8ae7ce; }
+    .month.active { background: #80b9ff22; border-color: #80b9ffb3; color: #c0dcff; box-shadow: 0 0 0 2px #80b9ff09; font-weight: 600; }
+    .month.downloaded { background: #80b9ff0c; border-color: #567895; color: #a9c6e3; }
+    .month.failed { background: #ff9a9a16; border-color: #ff9a9a77; color: var(--red); }
+    .month.unavailable { visibility: hidden; }
+    .empty-months { color: var(--muted); font-size: 12px; padding: 5px 0 10px; }
+    .calendar-note { margin: 17px 0 0 58px; color: #8fa5ba; font-size: 10px; }
+    footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; color: #8da3b9; font-size: 10px; padding: 20px 0 30px; }
+    .footer-left { display: flex; align-items: center; gap: 7px; }
+    .footer-left svg { width: 12px; height: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    @media (max-width: 800px) {
+      .shell { width: calc(100% - 40px); }
+      header { padding: 23px 0; }
+      .hero-top { grid-template-columns: minmax(0, 1fr) 250px; gap: 25px; }
+      .hero { padding: 24px 24px 0; }
+      .phases { gap: 13px; }
+      .phase-top { gap: 6px; }
+      .phase-label { font-size: 11px; }
+      .months { gap: 5px; }
+      .calendar .block-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+    }
+    @media (max-width: 600px) {
+      .shell { width: calc(100% - 32px); }
+      header { gap: 12px; padding: 20px 0; }
+      .brand-mark { width: 30px; height: 30px; }
+      .brand { gap: 8px; }
+      .brand-name { font-size: 17px; }
+      .brand-sub { font-size: 9px; letter-spacing: .9px; }
+      .header-tools { gap: 10px; }
+      .live { font-size: 10px; }
+      .refresh { padding: 6px 9px; font-size: 11px; }
+      .intro { margin: 14px 0 21px; align-items: flex-start; }
+      .manual { display: none; }
+      h1 { font-size: 29px; letter-spacing: -.9px; }
+      .subtitle { font-size: 12px; max-width: 280px; }
+      .hero { padding: 22px 20px 0; }
+      .hero-top { grid-template-columns: 1fr; gap: 0; }
+      .overall-value { font-size: 58px; }
+      .percent-row { margin-bottom: 17px; }
+      .now { padding: 13px 15px; margin-bottom: 21px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 15px; align-items: center; }
+      .now-top { grid-column: 1 / -1; margin-bottom: 3px; font-size: 9px; }
+      .current-month { font-size: 17px; margin: 0; }
+      .current-stage { font-size: 11px; text-align: right; }
+      .stat { padding: 17px 0; }
+      .stat + .stat { padding-left: 14px; }
+      .stat-value { font-size: 17px; }
+      .stat-value span { font-size: 10px; }
+      .stat-label { font-size: 9px; }
+      .data-grid { gap: 12px; margin: 12px 0; }
+      .data-card { padding: 17px 15px; }
+      .card-heading { gap: 4px; align-items: flex-start; }
+      .card-heading h2 { font-size: 11px; max-width: 95px; }
+      .card-percent { font-size: 10px; }
+      .records { font-size: clamp(18px, 4.7vw, 21px); letter-spacing: -.7px; margin-top: 12px; }
+      .records-total { font-size: 9px; }
+      .data-card .small-note { font-size: 9px; min-height: 27px; }
+      .flow { padding: 20px; margin-bottom: 12px; }
+      .flow .block-heading { margin-bottom: 17px; }
+      .flow .block-heading p { display: none; }
+      .phases { gap: 10px; grid-template-columns: 1fr; }
+      .phase { display: grid; grid-template-columns: 125px 1fr 55px; gap: 12px; align-items: center; }
+      .phase-top { margin: 0; gap: 9px; }
+      .phase-label { font-size: 12px; }
+      .phase-state { margin-top: 0; text-align: right; font-size: 9px; }
+      .calendar { padding: 20px; }
+      .year { grid-template-columns: 31px minmax(0, 1fr); gap: 10px; align-items: start; }
+      .year-label { padding-top: 7px; }
+      .years { gap: 14px; }
+      .months { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+      .month { font-size: 11px; padding: 7px 0; }
+      .legend { gap: 10px; font-size: 9px; }
+      .calendar-note { margin-left: 41px; font-size: 9px; }
+      footer { flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px 0 25px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M5 13 20 5l15 8-15 8L5 13Z" stroke="currentColor" stroke-width="1.6"/><path d="m5 20 15 8 15-8M5 27l15 8 15-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <div><div class="brand-name">UrbanLake</div><div class="brand-sub">Data &amp; intelligence</div></div>
+      </div>
+      <div class="header-tools">
+        <span id="connection" class="live" role="status">Connecting</span>
+        <button id="refresh" class="refresh" type="button" aria-label="Refresh progress now">Refresh</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="intro">
+        <div>
+          <p class="eyebrow">Historical backfill</p>
+          <h1>Your lakehouse, coming to life.</h1>
+          <p class="subtitle">NYC 311 data → verified lakehouse → trained demand model.</p>
+        </div>
+        <span class="manual">Manual run</span>
+      </div>
+
+      <div id="notice" class="notice" role="alert" hidden></div>
+      <section class="panel hero" aria-labelledby="overall-heading">
+        <div class="hero-top">
+          <div>
+            <h2 id="overall-heading" class="section-label">Overall estimate</h2>
+            <div class="percent-row">
+              <div class="overall-value"><span id="overall-value">—</span><small>%</small></div>
+              <span id="status" class="status-chip waiting">Waiting for data</span>
+            </div>
+            <div id="overall-bar" class="track overall" role="progressbar" aria-label="Estimated overall project progress" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Waiting for first snapshot"><div id="overall-fill" class="fill"></div></div>
+            <p class="small-note">Includes downloading, processing, verification, training, and serving.</p>
+          </div>
+          <div class="now" aria-labelledby="current-heading">
+            <div id="current-heading" class="now-top"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Current work</div>
+            <div id="current-month" class="current-month">Connecting…</div>
+            <div id="current-stage" class="current-stage">Reading actual job state</div>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><div id="months-ready" class="stat-value">— <span>/ —</span></div><div class="stat-label">Months finalized</div></div>
+          <div class="stat"><div id="remaining" class="stat-value">—</div><div class="stat-label">Rough time remaining</div></div>
+          <div class="stat"><div id="elapsed" class="stat-value">—</div><div class="stat-label">Time elapsed</div></div>
+        </div>
+      </section>
+
+      <div class="data-grid">
+        <section class="panel data-card" aria-labelledby="download-heading">
+          <div class="card-heading"><h2 id="download-heading">Downloaded</h2><span id="download-percent" class="card-percent">—</span></div>
+          <div id="download-records" class="records">—</div>
+          <div class="records-total">of <span data-total-records>—</span> source records</div>
+          <div id="download-bar" class="track" role="progressbar" aria-label="Source records downloaded" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Waiting for first snapshot"><div id="download-fill" class="fill"></div></div>
+          <p class="small-note">Source pages safely saved on this laptop.</p>
+        </section>
+        <section class="panel data-card blue" aria-labelledby="process-heading">
+          <div class="card-heading"><h2 id="process-heading">In finalized lakehouse</h2><span id="process-percent" class="card-percent">—</span></div>
+          <div id="process-records" class="records">—</div>
+          <div class="records-total">of <span data-total-records>—</span> source records</div>
+          <div id="process-bar" class="track" role="progressbar" aria-label="Source records in finalized lakehouse partitions" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Waiting for first snapshot"><div id="process-fill" class="fill"></div></div>
+          <p class="small-note">Updates when each month's processing finishes.</p>
+        </section>
+      </div>
+
+      <section class="panel flow" aria-labelledby="flow-heading">
+        <div class="block-heading"><h2 id="flow-heading">From source to serving</h2><p>Every stage is verified before completion.</p></div>
+        <div id="phases" class="phases" aria-label="Project stages"></div>
+      </section>
+
+      <section class="panel calendar" aria-labelledby="calendar-heading">
+        <div class="block-heading">
+          <h2 id="calendar-heading">Month by month</h2>
+          <div class="legend" aria-label="Month status legend"><span><i class="done" aria-hidden="true"></i>Finalized</span><span><i class="active" aria-hidden="true"></i>Active</span><span><i class="downloaded" aria-hidden="true"></i>Downloaded</span><span><i aria-hidden="true"></i>Waiting</span></div>
+        </div>
+        <div id="years" class="years"><div class="empty-months">Waiting for the historical partition plan…</div></div>
+        <p class="calendar-note">Each tile is one source month. Hover a month for its status and record count.</p>
+      </section>
+      <p id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+    </main>
+
+    <footer>
+      <span class="footer-left"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="3" width="12" height="9" rx="1.5" stroke="currentColor"/><path d="M5 14h6M8 12v2" stroke="currentColor"/></svg>Live from this laptop · Refreshes every 2 seconds</span>
+      <span id="last-checked">Waiting for first update</span>
+    </footer>
+  </div>
+
+  <script>
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+    const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+    const percentFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const stageNames = {
+      download: "Downloading source records",
+      relay: "Relaying records through Kafka",
+      consume: "Processing the lakehouse",
+      finalize: "Finalizing the monthly partition",
+      "verify-full": "Auditing the full dataset",
+      training: "Training and evaluating the model",
+      serving: "Checking the prediction service"
+    };
+    const phaseDefaults = [
+      { key: "download", label: "Download" },
+      { key: "process", label: "Lakehouse" },
+      { key: "verify", label: "Verify" },
+      { key: "train", label: "Train model" },
+      { key: "serve", label: "Serve" }
+    ];
+    const phaseStates = { done: "Complete", running: "In progress", pending: "Waiting", failed: "Failed" };
+    const monthStates = { done: "Finalized", active: "Active", downloaded: "Downloaded", pending: "Waiting", failed: "Failed" };
+    let snapshot = null;
+    let timer = null;
+    let inFlight = false;
+    let monthSignature = "";
+    let lastAnnouncement = "";
+
+    function count(value) {
+      return Number.isFinite(Number(value)) ? numberFormat.format(Number(value)) : "—";
+    }
+
+    function percent(value) {
+      return Math.min(100, Math.max(0, Number(value) || 0));
+    }
+
+    function duration(value, rough = false) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return "—";
+      const seconds = Math.max(0, Number(value));
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+      const prefix = rough && seconds > 0 ? "~" : "";
+      if (days > 0) return `${prefix}${days}d ${hours % 24}h`;
+      if (hours > 0) return `${prefix}${hours}h ${minutes % 60}m`;
+      if (minutes > 0) return `${prefix}${minutes}m`;
+      return rough ? "Under 1m" : `${Math.floor(seconds)}s`;
+    }
+
+    function monthLabel(value) {
+      if (!/^\d{4}-\d{2}$/.test(value || "")) return "Historical dataset";
+      const [year, month] = value.split("-").map(Number);
+      if (month < 1 || month > 12) return "Historical dataset";
+      return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
+
+    function setBar(prefix, value) {
+      const amount = percent(value);
+      $(`${prefix}-fill`).style.width = `${amount}%`;
+      $(`${prefix}-bar`).setAttribute("aria-valuenow", amount.toFixed(1));
+      $(`${prefix}-bar`).setAttribute("aria-valuetext", `${percentFormat.format(amount)} percent`);
+      return amount;
+    }
+
+    function renderPhases(phases) {
+      const source = Array.isArray(phases) ? phases : [];
+      const fragment = document.createDocumentFragment();
+      phaseDefaults.forEach((fallback, index) => {
+        const phase = source.find((item) => item.key === fallback.key) || fallback;
+        const state = Object.hasOwn(phaseStates, phase.state) ? phase.state : "pending";
+        const row = document.createElement("div");
+        row.className = `phase ${state}`;
+        row.setAttribute("aria-label", `${phase.label || fallback.label}: ${phaseStates[state]}`);
+        const top = document.createElement("div");
+        top.className = "phase-top";
+        const marker = document.createElement("span");
+        marker.className = "phase-number";
+        marker.setAttribute("aria-hidden", "true");
+        marker.textContent = state === "done" ? "✓" : state === "failed" ? "!" : String(index + 1);
+        const label = document.createElement("span");
+        label.className = "phase-label";
+        label.textContent = phase.label || fallback.label;
+        top.append(marker, label);
+        const track = document.createElement("div");
+        track.className = "track";
+        track.setAttribute("aria-hidden", "true");
+        const fill = document.createElement("div");
+        fill.className = "fill";
+        fill.style.width = `${percent(phase.percent)}%`;
+        track.append(fill);
+        const stateLabel = document.createElement("div");
+        stateLabel.className = "phase-state";
+        stateLabel.textContent = phaseStates[state];
+        row.append(top, track, stateLabel);
+        fragment.append(row);
+      });
+      $("phases").replaceChildren(fragment);
+    }
+
+    function renderMonths(months) {
+      if (!Array.isArray(months) || !months.length) return;
+      const signature = JSON.stringify(months);
+      if (signature === monthSignature) return;
+      monthSignature = signature;
+      const years = new Map();
+      [...months].sort((a, b) => String(a.month).localeCompare(String(b.month))).forEach((month) => {
+        if (!/^\d{4}-\d{2}$/.test(month.month || "")) return;
+        const year = month.month.slice(0, 4);
+        const position = Number(month.month.slice(5)) - 1;
+        if (position < 0 || position > 11) return;
+        if (!years.has(year)) years.set(year, new Map());
+        years.get(year).set(position, month);
+      });
+      const fragment = document.createDocumentFragment();
+      years.forEach((monthsByPosition, year) => {
+        const row = document.createElement("div");
+        row.className = "year";
+        const label = document.createElement("div");
+        label.className = "year-label";
+        label.textContent = year;
+        const grid = document.createElement("div");
+        grid.className = "months";
+        grid.setAttribute("role", "list");
+        grid.setAttribute("aria-label", `${year} source months`);
+        monthNames.forEach((name, position) => {
+          const month = monthsByPosition.get(position);
+          const cell = document.createElement("div");
+          cell.textContent = name;
+          if (!month) {
+            cell.className = "month unavailable";
+            cell.setAttribute("aria-hidden", "true");
+          } else {
+            const state = Object.hasOwn(monthStates, month.state) ? month.state : "pending";
+            const description = `${monthLabel(month.month)} · ${monthStates[state]}${month.records === null || month.records === undefined ? "" : ` · ${count(month.records)} records`}`;
+            cell.className = `month ${state}`;
+            cell.title = description;
+            cell.setAttribute("role", "listitem");
+            cell.setAttribute("aria-label", description);
+          }
+          grid.append(cell);
+        });
+        row.append(label, grid);
+        fragment.append(row);
+      });
+      $("years").replaceChildren(fragment);
+    }
+
+    function render(data) {
+      const overall = setBar("overall", data.overall_percent);
+      const downloaded = setBar("download", data.download_percent);
+      const processed = setBar("process", data.processing_percent);
+      $("overall-value").textContent = percentFormat.format(overall);
+      $("download-percent").textContent = `${percentFormat.format(downloaded)}%`;
+      $("process-percent").textContent = `${percentFormat.format(processed)}%`;
+      $("download-records").textContent = count(data.downloaded_records);
+      $("process-records").textContent = count(data.processed_records);
+      document.querySelectorAll("[data-total-records]").forEach((node) => { node.textContent = count(data.total_records); });
+      $("months-ready").replaceChildren(document.createTextNode(`${count(data.completed_months)} `));
+      const totalMonths = document.createElement("span");
+      totalMonths.textContent = `/ ${count(data.total_months)}`;
+      $("months-ready").append(totalMonths);
+      $("elapsed").textContent = duration(data.elapsed_seconds);
+      $("remaining").textContent = data.status === "complete" ? "Complete" : data.status === "failed" ? "On hold" : duration(data.estimated_remaining_seconds, true);
+      const stage = data.current_stage || data.phase;
+      $("current-month").textContent = data.status === "complete" ? "Project complete" : data.phase === "training" ? "Full dataset model" : data.phase === "serving" ? "Prediction service" : stage === "verify-full" ? "Full dataset audit" : monthLabel(data.current_month);
+      $("current-stage").textContent = data.status === "complete" ? "All required checks passed" : data.status === "failed" ? "Run needs attention" : stageNames[stage] || (data.status === "not_started" ? "Waiting for the run to start" : "Reading pipeline state");
+      const statusLabels = { running: "In progress", failed: "Needs attention", complete: "Complete", not_started: "Not started" };
+      $("status").textContent = statusLabels[data.status] || "Updating";
+      $("status").className = `status-chip${data.status === "failed" ? " failed" : data.status === "not_started" ? " waiting" : ""}`;
+      renderPhases(data.phases);
+      renderMonths(data.months);
+      const notice = $("notice");
+      notice.hidden = data.status !== "failed" && !data.error;
+      notice.className = `notice${data.status === "failed" ? " failure" : ""}`;
+      notice.textContent = data.error ? String(data.error) : data.status === "failed" ? "The run stopped before completion. The progress below shows the last recorded job state." : "";
+      $("connection").className = `live${data.status === "failed" ? " failed" : ""}`;
+      $("connection").textContent = data.status === "complete" ? "Complete" : data.status === "failed" ? "Run stopped" : "Live updates";
+      const checkDate = new Date();
+      $("last-checked").textContent = `Last checked ${checkDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
+      const snapshotDate = new Date(data.snapshot_at || data.updated_at || "");
+      $("last-checked").title = Number.isNaN(snapshotDate.getTime()) ? "Latest successful progress check" : `Snapshot: ${snapshotDate.toLocaleString()}`;
+      const announcement = `${statusLabels[data.status] || "Updating"}. ${count(data.completed_months)} of ${count(data.total_months)} months finalized. ${data.current_stage ? stageNames[data.current_stage] || data.current_stage : ""}`;
+      if (announcement !== lastAnnouncement) {
+        $("announcement").textContent = announcement;
+        lastAnnouncement = announcement;
+      }
+      document.title = `${percentFormat.format(overall)}% · UrbanLake progress`;
+    }
+
+    async function poll() {
+      if (inFlight) return;
+      inFlight = true;
+      clearTimeout(timer);
+      $("refresh").disabled = true;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch("/v1/progress", { cache: "no-store", signal: controller.signal, headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error(`Progress service returned HTTP ${response.status}`);
+        const data = await response.json();
+        if (!data || !["running", "failed", "complete", "not_started"].includes(data.status)) throw new Error("Progress service returned an unexpected response");
+        render(data);
+        snapshot = data;
+      } catch (error) {
+        $("connection").className = "live reconnecting";
+        $("connection").textContent = "Reconnecting";
+        $("notice").hidden = false;
+        $("notice").className = "notice";
+        $("notice").textContent = snapshot
+          ? "The live connection is temporarily unavailable. Your last verified progress is shown below; this page will reconnect automatically."
+          : "Connecting to the local progress service. This page will retry automatically; keep Docker and the project services running.";
+        $("notice").title = error instanceof Error ? error.message : "Connection unavailable";
+      } finally {
+        clearTimeout(timeout);
+        $("refresh").disabled = false;
+        inFlight = false;
+        timer = setTimeout(poll, document.hidden ? 10000 : snapshot?.status === "complete" ? 15000 : 2000);
+      }
+    }
+
+    $("refresh").addEventListener("click", poll);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) { clearTimeout(timer); poll(); }
+    });
+    renderPhases([]);
+    poll();
+  </script>
+</body>
+</html>

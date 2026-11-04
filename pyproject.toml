@@ -26,6 +26,9 @@ urbanlake = "urbanlake.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+urbanlake = ["static/*.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["integration: requires Docker services", "spark: requires Java and Spark"]

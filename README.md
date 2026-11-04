@@ -18,6 +18,11 @@ resume commands, resource budget and honest completion status are recorded in
 [the full-data run ledger](docs/FULL_DATA_RUN.md). The initial sample audit remains
 available as historical evidence.
 
+**Live progress:** open http://localhost:8000/progress while the job runs. The page
+refreshes every two seconds from actual saved job state, with separate download
+and finalized-lakehouse counts. Overall progress is an estimate and reaches 100%
+only after the audit, model training, and serving verification finish.
+
 ```mermaid
 flowchart LR
     NYC[NYC 311 API] --> I[Bounded ingestion]

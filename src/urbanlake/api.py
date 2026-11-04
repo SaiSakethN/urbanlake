@@ -16,7 +16,7 @@ import redis
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, ConfigDict
 
@@ -66,6 +66,26 @@ async def lifespan(application):
 
 
 app = FastAPI(title="UrbanLake Demand API", version="1.0.0", lifespan=lifespan)
+
+
+@app.get("/progress", response_class=HTMLResponse, include_in_schema=False)
+def progress_page():
+    return HTMLResponse(
+        (Path(__file__).parent / "static/progress.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/v1/progress")
+def progress_status():
+    from urbanlake.progress import snapshot
+
+    try:
+        return JSONResponse(snapshot(), headers={"Cache-Control": "no-store"})
+    except (OSError, ValueError, KeyError) as error:
+        raise HTTPException(
+            503, "progress snapshot temporarily unavailable; retry shortly"
+        ) from error
 
 
 @app.exception_handler(HTTPException)
