@@ -22,6 +22,9 @@ Source polling is reconciliation, **not CDC**.
 
 See [architecture and decisions](docs/ARCHITECTURE.md),
 [verification ledger](docs/VERIFICATION.md), and [build clock](docs/BUILD_LOG.md).
+For preservation requirements and restoration procedures, see the
+[archival and restore guide](docs/ARCHIVAL_AND_RESTORE.md) and
+[preservation inventory](docs/PRESERVATION_MANIFEST.md).
 
 The full-data pipeline and independent lake are under `data/full`. The global
 audit, full-history training, model promotion, actual Redis cache hit, and full
