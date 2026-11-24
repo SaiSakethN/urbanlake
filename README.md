@@ -1,5 +1,7 @@
 # UrbanLake
 
+![UrbanLake: Reconciled city data. Reproducible forecasting.](docs/assets/engineering-banner.svg)
+
 An urban-service lakehouse and demand-forecasting platform built with official NYC
 311 data. It demonstrates bounded API ingestion, Kafka, Spark/Delta medallion
 processing, SQL analytics, chronological ML evaluation, MLflow, FastAPI/Redis,
@@ -63,6 +65,18 @@ Redis is built from Debian's Redis 7.0 package. This avoids registry layer-downl
 failures encountered during the build. Prometheus uses its official Quay mirror.
 Top-level Python versions and important compatibility dependencies are pinned;
 this is not a complete transitive, hashed, multi-platform lockfile.
+
+## Engineering review at a glance
+
+| Question | Evidence and boundary |
+| --- | --- |
+| What is the scale? | The [full-data ledger](docs/FULL_DATA_RUN.md) records 23,008,706 requests, not a fresh download in every clone. |
+| How is correctness checked? | Archived observations, replay state, Delta layers and independent totals reconcile; unit and Docker integration commands appear below. |
+| How is forecasting judged? | Shifted lags, separate chronological validation/test tails and a seasonal-naive comparator; see `src/urbanlake/ml.py`. |
+| What does the demo run? | [Hosted release scope](docs/DEPLOYMENT.md): aggregate analytics and saved model outputs; Kafka/Spark stay local. |
+| What is deliberately limited? | Polling is not CDC; source revisions affect historical evaluation; the recorded snapshot is stale. |
+
+Start with the hosted analytics for a product view, the architecture for design decisions, and the run ledger for historical evidence. Reproducing the full run is resource-intensive; use the deterministic integration fixture for a bounded engineering check.
 
 ## Quick start (PowerShell)
 
